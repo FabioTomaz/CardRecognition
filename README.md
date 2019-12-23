@@ -1,8 +1,12 @@
 # Money Recognition
 An OpenCV program that recognizes euro bills and coins from images
 
-To build:
+## To compile
+```
 g++ CoinDetector.cpp -o CoinDetector.out `pkg-config --cflags --libs opencv`
+```
 
-To run:
+## To run
+```
 ./CoinDetector.out <image>
+```
