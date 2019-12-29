@@ -6,7 +6,12 @@ using namespace std;
 
 float getCircularityThresh(vector<Point> cntr);
 
-
+Scalar ScalarHSV2BGR(Scalar scalar) {
+    Mat hsv;
+    Mat rgb(1,1, CV_8UC3, scalar);
+    cvtColor(rgb, hsv, CV_BGR2HSV);
+    return Scalar(hsv.data[0], hsv.data[1], hsv.data[2]);
+}
 
 Mat getSquareImage( const cv::Mat& img, int target_width = 600 )
 {
@@ -113,7 +118,7 @@ int main(int argc, char** argv)
 	// good values for param-2 - for a image having circle contours = (75-90) ... for the edge image - (100-120)
 	vector<Vec3f> circles;
 
-	HoughCircles(edges, circles, CV_HOUGH_GRADIENT, 2, gray.rows / 9, 200, 100, 25, 100);
+	HoughCircles(edges, circles, CV_HOUGH_GRADIENT, 2, gray.rows / 9, 200, 100, 25, 90);
 
 	//struct to sort the vector of pairs <int,double> based on the second double value
 	struct sort_pred {
@@ -146,53 +151,89 @@ int main(int argc, char** argv)
 			0
 		); //Opened contour - draw a green rectangle arpund circle
 		ratio = ((radius*radius) / (largestRadius*largestRadius));
+	    
+		Mat1b mask(imgScaled.size(), uchar(0));
+    	circle(mask, Point(circles[i][0], circles[i][1]), circles[i][2], Scalar(255), CV_FILLED);
+		Scalar meanIntensity = mean(imgScaled, mask);
+		Scalar hsv = ScalarHSV2BGR(meanIntensity);
 
-		//Using an area ratio based discrimination .. after some trial and error with the diff sizes ... this gives good results.
-		if (ratio >= 0.95)
-		{
-			putText(imgScaled, "2 Euro", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-			change = change + 2.0;
-		}
-		else if ((ratio >= 0.70) && (ratio<95))
-		{
-			/*putText(imgScaled, "50 cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-			change = change + 1.0;*/
-			putText(imgScaled, "1 euro", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-			change = change + .50;
-		}
-		else if ((ratio >= 0.50) && (ratio<.70))
-		{
-			putText(imgScaled, "20-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-			change = change + .20;
-		}
-		else if ((ratio >= 0.40) && (ratio<.50))
-		{
-			putText(imgScaled, "10-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-			change = change + .10;
-		}
-		else if ((ratio >= 0.20) && (ratio<.40))
-		{
-			putText(imgScaled, "5-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-			change = change + .05;
-		}
-		else if ((ratio >= 0.10) && (ratio<.20))
-		{
-			putText(imgScaled, "2-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-			change = change + .02;
-		}
-		else if ((ratio >= 0.0) && (ratio<.10))
-		{
-			putText(imgScaled, "1-cent", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-			change = change + .01;
+		Mat circleRectangle = img(
+			Range(circles[i][1]-circles[i][2], circles[i][1]+circles[i][2]+1), 
+			Range(circles[i][0]-circles[i][2], circles[i][0]+circles[i][2]+1)
+		);
+
+		// If hue < 10 then 5/2/1 cents
+		// Using an area ratio based discrimination
+		if(hsv[0] <= 10) {
+			if ((ratio >= 0.75) && (ratio<.95))
+			{
+				putText(imgScaled, to_string(i)+ "-5-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				change = change + .05;
+				cout <<  i << " 5 cents - " << hsv <<endl;
+
+			}
+			else if ((ratio >= 0.65) && (ratio<.75))
+			{
+				putText(imgScaled, to_string(i)+ "-2-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				change = change + .02;
+				cout <<  i << " 2 cents - " << hsv <<endl;
+			}
+			else if ((ratio >= 0.4) && (ratio<.65))
+			{
+				putText(imgScaled, to_string(i)+ "-1-cent", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				change = change + .01;
+				cout <<  i << " 1 cent - " << hsv <<endl;
+			}			
+		} else if (hsv[0] > 14) {
+			if ((ratio >= 0.75) && (ratio<95))
+			{
+				putText(imgScaled, "50 cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				change = change + 1.0;
+				cout << i << " 50 cents - " << hsv <<endl;
+			}
+			else if ((ratio >= 0.55) && (ratio<.75))
+			{
+				putText(imgScaled, to_string(i)+ "-20-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				change = change + .20;
+				cout << i << " 20 cents - " << hsv <<endl;
+			}
+			else if ((ratio >= 0.40) && (ratio<.55))
+			{
+				putText(imgScaled, to_string(i)+ "-10-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				change = change + .10;
+				cout << i << " 10 cents - " << hsv <<endl;
+			}
+		} else {
+			if (ratio >= 0.90)
+			{
+				putText(imgScaled, to_string(i)+ "-2 Euro", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				change = change + 2.0;
+				cout << i << "2 euro - " << hsv <<endl;
+			}
+			else if ((ratio >= 0.70) && (ratio<90))
+			{
+				putText(imgScaled, to_string(i)+ "-1 euro", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				change = change + .50;
+				cout << i << " 1 euro - " << hsv <<endl;
+			}
 		}
 
 	}
 
-	putText(imgScaled, "Total Money:" + to_string(change), Point(imgScaled.cols / 10, imgScaled.rows - imgScaled.rows / 10), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.6, CV_AA);
+	putText(
+		imgScaled, 
+		"Coins: " + to_string(circles.size()) + " Total Money:" + to_string(change), 
+		Point(imgScaled.cols / 10, imgScaled.rows - imgScaled.rows / 10), 
+		FONT_HERSHEY_COMPLEX_SMALL, 
+		0.7, 
+		Scalar(0, 255, 255), 
+		0.6, 
+		CV_AA
+	);
 
-	namedWindow("circles", WINDOW_NORMAL);
-	resizeWindow("circles", 600, 600);
-	imshow("circles", imgScaled);
+	namedWindow("Result", WINDOW_NORMAL);
+	resizeWindow("Result", 600, 600);
+	imshow("Result", imgScaled);
 
 	waitKey();
 
