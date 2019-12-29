@@ -5,6 +5,7 @@
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/highgui.hpp"
 #include <opencv2/objdetect.hpp>
+#include <string> 
 
 #include <iostream>
 
@@ -23,7 +24,7 @@ static void help(const char* programName)
 }
 
 
-int thresh = 50, N = 2;
+int thresh = 50, N = 1;
 const char* wndname = "Square Detection Demo";
 
 // helper function:
@@ -41,17 +42,29 @@ static double angle( Point pt1, Point pt2, Point pt0 )
 /**
 Some contour detection detect the outer border of the image as a rectangle.. remove that
 **/
-static bool rectangleCoveringImage(Mat img, vector<Point> rect){
+/*static bool noRectangleOverImage(Mat img, vector<Point> rect){
     double imgSize = img.size().width * img.size().height;
     double rectSize = fabs(contourArea(rect));
     double diff = imgSize - rectSize;
-    double percent = (diff*0.1)/imgSize;
-    if ( (imgSize - rectSize) > 0.005){
-         cout << imgSize <<" - "<< rectSize<<": " << percent<<endl;
+    double percent = (diff*100)/imgSize;
+    cout << imgSize <<" - "<< rectSize<<": " << percent<<endl;
+    if ( (imgSize - rectSize) <= 0.01){
+         
         //the diference of areas is too small: consider that the border of the image was detected as a square
-        return false;
+        return true;
     } 
     return false;
+}*/
+
+static bool noRectangleOverImage(Mat img, vector<Point> rect){
+    double imgHeight = img.size().height;
+    double imgWidth = img.size().width;
+    if(find(rect.begin(), rect.end(), Point(0, 0)) != rect.end()) {
+        //contains
+        cout << rect<<endl;
+        return false;
+    }
+    return true;
 }
 
 // returns sequence of squares detected on the image.
@@ -67,7 +80,9 @@ static vector<Rect> findSquares( const Mat& image, vector<vector<Point> >& squar
 
     // blur will enhance edge detection
     Mat blurred(image);
-    medianBlur(image, blurred, 9);
+    medianBlur(image, blurred, 11);
+    //GaussianBlur(image, blurred, Size(9, 9), 8);
+
     // original, downscale and upscaler was used, changed to blurr : https://stackoverflow.com/questions/8667818/opencv-c-obj-c-detecting-a-sheet-of-paper-square-detection
 
     Mat gray0(blurred.size(), CV_8U), gray, timg, pyr;
@@ -96,21 +111,24 @@ static vector<Rect> findSquares( const Mat& image, vector<vector<Point> >& squar
             {
                 // apply Canny. Take the upper threshold from slider
                 // and set the lower to 0 (which forces edges merging)
-                Canny(gray0, gray, 0, thresh, 5);
+                Canny(gray0, gray, 0, thresh, 3);
                 
                 // dilate canny output to remove potential
                 // holes between edge segments
                 dilate(gray, gray, Mat(), Point(-1,-1));
             }
-            else
-            {
-                // apply threshold if l!=0:
-                //     tgray(x,y) = gray(x,y) < (l+1)*255/N ? 255 : 0
-                gray = gray0 >= (l+1)*255/N;
-            }
+            
+            /*string cstring = to_string(c);
+            string name = "median blurred ";
+            name+= cstring;
+            name+= ", ";
+            name+= to_string(l);
+            namedWindow(name, WINDOW_NORMAL);
+            resizeWindow(name, 800, 800);
+            imshow(name, gray);*/
 
             // find contours and store them all as a list
-            findContours(gray, contours, CV_RETR_LIST, CHAIN_APPROX_SIMPLE);
+            findContours(gray, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE); //CV_RETR_EXTERNAL -> dont detect any inner squares inside the bills!
             
 
             vector<Point> approx;
@@ -144,21 +162,21 @@ static vector<Rect> findSquares( const Mat& image, vector<vector<Point> >& squar
                     // if cosines of all angles are small
                     // (all angles are ~90 degree) then write quandrange
                     // vertices to resultant sequence
-                    if( maxCosine < 0.3 && !rectangleCoveringImage(gray, approx)){
+                    //&& noRectangleOverImage(gray, approx)
+                    if( maxCosine < 0.3){
                         squares.push_back(approx);
-                        //cout << fabs(contourArea(approx)) <<endl;
                     }
                 }
             }
         }
     }
+
     vector<Rect> rects;
     for (size_t i = 0; i < squares.size(); i++){
         vector<Point> contour = squares[i];
         rects.push_back( boundingRect(contour));
     }
-    //cout << rects <<endl;
-    groupRectangles(rects, 1, 0.50); //at least 2 triangles must be merged
+    groupRectangles(rects, 1, 0.05); //we may have multiple rectangles really close, so we merge them together. at least 2 triangles must be merged and they must be really overlaped to be merged
     return rects;
 }
 
@@ -170,8 +188,6 @@ static void drawSquares( Mat& image, const vector<Rect>& squares )
     {
         Rect rect = squares[i];
         rectangle(image, rect, Scalar(0,255,0), 3, LINE_AA);
-        cout << rect<<endl;
-
     }
     namedWindow(wndname, WINDOW_NORMAL);
     resizeWindow(wndname, 800, 800);
