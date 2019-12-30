@@ -4,70 +4,13 @@
 using namespace cv;
 using namespace std;
 
+Scalar ScalarHSV2BGR(Scalar scalar);
+
+Mat getSquareImage( const cv::Mat& img, int target_width);
+
 float getCircularityThresh(vector<Point> cntr);
 
-Scalar ScalarHSV2BGR(Scalar scalar) {
-    Mat hsv;
-    Mat rgb(1,1, CV_8UC3, scalar);
-    cvtColor(rgb, hsv, CV_BGR2HSV);
-    return Scalar(hsv.data[0], hsv.data[1], hsv.data[2]);
-}
-
-Mat getSquareImage( const cv::Mat& img, int target_width = 600 )
-{
-    int width = img.cols,
-       height = img.rows;
-
-    cv::Mat square = cv::Mat::zeros( target_width, target_width, img.type() );
-
-    int max_dim = ( width >= height ) ? width : height;
-    float scale = ( ( float ) target_width ) / max_dim;
-    cv::Rect roi;
-    if ( width >= height )
-    {
-        roi.width = target_width;
-        roi.x = 0;
-        roi.height = height * scale;
-        roi.y = ( target_width - roi.height ) / 2;
-    }
-    else
-    {
-        roi.y = 0;
-        roi.height = target_width;
-        roi.width = width * scale;
-        roi.x = ( target_width - roi.width ) / 2;
-    }
-
-    cv::resize( img, square( roi ), roi.size() );
-
-    return square;
-}
-
-void drawResult(Mat img, Point center, float radius, string text) {
-	// draw the circle center
-	circle(img, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-	// draw the circle outline
-	circle(img, center, radius, Scalar(0, 0, 255), 2, 8, 0);
-	rectangle(
-		img, 
-		Point(center.x - radius - 5, center.y - radius - 5), 
-		Point(center.x + radius + 5, center.y + radius + 5), 
-		CV_RGB(0, 0, 255), 
-		1, 
-		8, 
-		0
-	); //Opened contour - draw a green rectangle arpund circle
-	putText(
-		img, 
-		text, 
-		Point(center.x - radius, center.y + radius + 15), 
-		FONT_HERSHEY_COMPLEX_SMALL, 
-		0.7, 
-		Scalar(0, 255, 255), 
-		0.4, 
-		CV_AA
-	);
-}
+void drawResult(Mat img, Point center, float radius, string text);
 
 int main(int argc, char** argv)
 {
@@ -78,7 +21,7 @@ int main(int argc, char** argv)
 		return -1; 
 	}
 
-	imgScaled = getSquareImage(img);
+	imgScaled = getSquareImage(img, 600);
 
 	cvtColor(imgScaled, gray, CV_BGR2GRAY);
 
@@ -324,18 +267,66 @@ float getCircularityThresh(vector<Point> cntr)
 
 }
 
-/*
-approx = cv.approxPolyDP(cnt, 0.008 * cv.arcLength(cnt, True), True)
-            area = cv.contourArea(cnt)
-            if len(approx) > 12 and area > 750:
-                (x, y), radius = cv.minEnclosingCircle(cnt)
-                center = (int(x), int(y))
-                radius = int(radius)
-                if area > 8000:
-                    real_contoursB.append((center, radius))
-                    #cv.circle(original, center, radius, (255, 255, 0), 4)
-                else:
-                    real_contoursG.append((center, radius))
-                    #cv.circle(original, center, radius, (0, 255, 0), 4)
-*/
+Scalar ScalarHSV2BGR(Scalar scalar) {
+    Mat hsv;
+    Mat rgb(1,1, CV_8UC3, scalar);
+    cvtColor(rgb, hsv, CV_BGR2HSV);
+    return Scalar(hsv.data[0], hsv.data[1], hsv.data[2]);
+}
 
+Mat getSquareImage(const cv::Mat& img, int target_width)
+{
+    int width = img.cols,
+       height = img.rows;
+
+    cv::Mat square = cv::Mat::zeros( target_width, target_width, img.type() );
+
+    int max_dim = ( width >= height ) ? width : height;
+    float scale = ( ( float ) target_width ) / max_dim;
+    cv::Rect roi;
+    if ( width >= height )
+    {
+        roi.width = target_width;
+        roi.x = 0;
+        roi.height = height * scale;
+        roi.y = ( target_width - roi.height ) / 2;
+    }
+    else
+    {
+        roi.y = 0;
+        roi.height = target_width;
+        roi.width = width * scale;
+        roi.x = ( target_width - roi.width ) / 2;
+    }
+
+    cv::resize( img, square( roi ), roi.size() );
+
+    return square;
+}
+
+void drawResult(Mat img, Point center, float radius, string text) 
+{
+	// draw the circle center
+	circle(img, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+	// draw the circle outline
+	circle(img, center, radius, Scalar(0, 0, 255), 2, 8, 0);
+	rectangle(
+		img, 
+		Point(center.x - radius - 5, center.y - radius - 5), 
+		Point(center.x + radius + 5, center.y + radius + 5), 
+		CV_RGB(0, 0, 255), 
+		1, 
+		8, 
+		0
+	); //Opened contour - draw a green rectangle arpund circle
+	putText(
+		img, 
+		text, 
+		Point(center.x - radius, center.y + radius + 15), 
+		FONT_HERSHEY_COMPLEX_SMALL, 
+		0.7, 
+		Scalar(0, 255, 255), 
+		0.4, 
+		CV_AA
+	);
+}
