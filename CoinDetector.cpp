@@ -8,8 +8,6 @@ Scalar ScalarHSV2BGR(Scalar scalar);
 
 Mat getSquareImage( const cv::Mat& img, int target_width);
 
-float getCircularityThresh(vector<Point> cntr);
-
 void drawResult(Mat img, Point center, float radius, string text);
 
 int main(int argc, char** argv)
@@ -64,8 +62,6 @@ int main(int argc, char** argv)
 
 	//Find all contours in the edges image
 	findContours(edges.clone(), contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE);
-
-	float circThresh;
 
 	for (int j = 0; j < contours.size(); j++)
 	{
@@ -254,17 +250,6 @@ int main(int argc, char** argv)
 	waitKey();
 
 	return 0;
-}
-
-float getCircularityThresh(vector<Point> cntr)
-{
-	float perm, area;
-
-	perm = arcLength(Mat(cntr), true);
-	area = contourArea(Mat(cntr));
-
-	return ((perm*perm) / area);
-
 }
 
 Scalar ScalarHSV2BGR(Scalar scalar) {
