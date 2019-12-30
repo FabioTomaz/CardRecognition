@@ -43,6 +43,32 @@ Mat getSquareImage( const cv::Mat& img, int target_width = 600 )
     return square;
 }
 
+void drawResult(Mat img, Point center, float radius, string text) {
+	// draw the circle center
+	circle(img, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+	// draw the circle outline
+	circle(img, center, radius, Scalar(0, 0, 255), 2, 8, 0);
+	rectangle(
+		img, 
+		Point(center.x - radius - 5, center.y - radius - 5), 
+		Point(center.x + radius + 5, center.y + radius + 5), 
+		CV_RGB(0, 0, 255), 
+		1, 
+		8, 
+		0
+	); //Opened contour - draw a green rectangle arpund circle
+	putText(
+		img, 
+		text, 
+		Point(center.x - radius, center.y + radius + 15), 
+		FONT_HERSHEY_COMPLEX_SMALL, 
+		0.7, 
+		Scalar(0, 255, 255), 
+		0.4, 
+		CV_AA
+	);
+}
+
 int main(int argc, char** argv)
 {
 	Mat img, imgScaled, gray;
@@ -131,98 +157,145 @@ int main(int argc, char** argv)
 
 	float largestRadius = circles[0][2];
 	float change = 0;
+	int coins = 0;
 	float ratio;
 
 	for (size_t i = 0; i < circles.size(); i++)
 	{
 		Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
 		float radius = circles[i][2];
-		// draw the circle center
-		circle(imgScaled, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-		// draw the circle outline
-		circle(imgScaled, center, radius, Scalar(0, 0, 255), 2, 8, 0);
-		rectangle(
-			imgScaled, 
-			Point(center.x - radius - 5, center.y - radius - 5), 
-			Point(center.x + radius + 5, center.y + radius + 5), 
-			CV_RGB(0, 0, 255), 
-			1, 
-			8, 
-			0
-		); //Opened contour - draw a green rectangle arpund circle
 		ratio = ((radius*radius) / (largestRadius*largestRadius));
 	    
 		Mat1b mask(imgScaled.size(), uchar(0));
     	circle(mask, Point(circles[i][0], circles[i][1]), circles[i][2], Scalar(255), CV_FILLED);
 		Scalar meanIntensity = mean(imgScaled, mask);
 		Scalar hsv = ScalarHSV2BGR(meanIntensity);
-
-		Mat circleRectangle = img(
-			Range(circles[i][1]-circles[i][2], circles[i][1]+circles[i][2]+1), 
-			Range(circles[i][0]-circles[i][2], circles[i][0]+circles[i][2]+1)
+/*
+		drawResult(
+			imgScaled, 
+			center, 
+			radius, 
+			to_string(i)+ "-?? euro"
 		);
 
-		// If hue < 10 then 5/2/1 cents
+		cout <<  i << " ?? cents - " << hsv <<endl;*/
+
+		// If <= 13, 130-190, 60-100  then 5/2/1 cents
 		// Using an area ratio based discrimination
-		if(hsv[0] <= 10) {
+		if (hsv[0] <=13 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=110){
 			if ((ratio >= 0.75) && (ratio<.95))
 			{
-				putText(imgScaled, to_string(i)+ "-5-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				drawResult(
+					imgScaled, 
+					center, 
+					radius, 
+					to_string(i)+ "- 5 cents"
+				);
 				change = change + .05;
+				coins = coins + 1;
 				cout <<  i << " 5 cents - " << hsv <<endl;
-
 			}
 			else if ((ratio >= 0.65) && (ratio<.75))
 			{
-				putText(imgScaled, to_string(i)+ "-2-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				drawResult(
+					imgScaled, 
+					center, 
+					radius, 
+					to_string(i)+ "- 2 cents"
+				);
 				change = change + .02;
+				coins = coins + 1;
 				cout <<  i << " 2 cents - " << hsv <<endl;
 			}
 			else if ((ratio >= 0.4) && (ratio<.65))
 			{
-				putText(imgScaled, to_string(i)+ "-1-cent", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				drawResult(
+					imgScaled, 
+					center, 
+					radius, 
+					to_string(i)+ "-1 cent"
+				);
 				change = change + .01;
+				coins = coins + 1;
 				cout <<  i << " 1 cent - " << hsv <<endl;
-			}			
-		} else if (hsv[0] > 14) {
-			if ((ratio >= 0.75) && (ratio<95))
-			{
-				putText(imgScaled, "50 cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-				change = change + 1.0;
-				cout << i << " 50 cents - " << hsv <<endl;
 			}
-			else if ((ratio >= 0.55) && (ratio<.75))
+			continue;			
+		} 
+
+		if (hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210){
+			//15-20 54-127 85-207
+			if (ratio >= 0.85)
 			{
-				putText(imgScaled, to_string(i)+ "-20-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-				change = change + .20;
-				cout << i << " 20 cents - " << hsv <<endl;
-			}
-			else if ((ratio >= 0.40) && (ratio<.55))
-			{
-				putText(imgScaled, to_string(i)+ "-10-cents", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-				change = change + .10;
-				cout << i << " 10 cents - " << hsv <<endl;
-			}
-		} else {
-			if (ratio >= 0.90)
-			{
-				putText(imgScaled, to_string(i)+ "-2 Euro", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
+				drawResult(
+					imgScaled, 
+					center, 
+					radius, 
+					to_string(i)+ "-2 euro"
+				);
 				change = change + 2.0;
+				coins = coins + 1;
 				cout << i << "2 euro - " << hsv <<endl;
 			}
-			else if ((ratio >= 0.70) && (ratio<90))
+			else if ((ratio >= 0.40) && (ratio<80))
 			{
-				putText(imgScaled, to_string(i)+ "-1 euro", Point(center.x - radius, center.y + radius + 15), FONT_HERSHEY_COMPLEX_SMALL, 0.7, Scalar(0, 255, 255), 0.4, CV_AA);
-				change = change + .50;
+				drawResult(
+					imgScaled, 
+					center, 
+					radius, 
+					to_string(i)+ "-1 euro"
+				);
+				change = change + 1.00;
+				coins = coins + 1;
 				cout << i << " 1 euro - " << hsv <<endl;
 			}
+			continue;
 		}
-
+		
+		if (hsv[0] >= 18 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=160 && hsv[2] >= 95 && hsv[2] <=190){
+			// 18-19, 110-160, 95-190
+			if (ratio >= 0.90)
+			{
+				drawResult(
+					imgScaled, 
+					center, 
+					radius, 
+					to_string(i)+ "-50 cents"
+				);
+				change = change + 0.5;
+				coins = coins + 1;
+				cout << i << " 50 cents - " << hsv <<endl;
+			}
+			else if ((ratio >= 0.75) && (ratio<.90))
+			{
+				drawResult(
+					imgScaled, 
+					center, 
+					radius, 
+					to_string(i)+ "-20 cents"
+				);
+				change = change + .20;
+				coins = coins + 1;
+				cout << i << " 20 cents - " << hsv <<endl;
+			}
+			else if ((ratio >= 0.40) && (ratio<.75))
+			{
+				drawResult(
+					imgScaled, 
+					center, 
+					radius, 
+					to_string(i)+ "-10 cents"
+				);
+				change = change + .10;
+				coins = coins + 1;
+				cout << i << " 10 cents - " << hsv <<endl;
+			}
+		} 
+		continue;
 	}
 
 	putText(
 		imgScaled, 
-		"Coins: " + to_string(circles.size()) + " Total Money:" + to_string(change), 
+		"Coins: " + to_string(coins) + " // Total Money:" + to_string(change), 
 		Point(imgScaled.cols / 10, imgScaled.rows - imgScaled.rows / 10), 
 		FONT_HERSHEY_COMPLEX_SMALL, 
 		0.7, 
