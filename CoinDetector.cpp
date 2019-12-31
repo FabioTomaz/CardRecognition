@@ -1,10 +1,11 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include<iostream>
+
 using namespace cv;
 using namespace std;
 
-Scalar ScalarHSV2BGR(Scalar scalar);
+Scalar ScalarBGR2HSV(Scalar scalar);
 
 Mat getSquareImage( const cv::Mat& img, int target_width);
 
@@ -33,7 +34,8 @@ int main(int argc, char** argv)
 	Mat edges, edgesOpened;
 
 	Canny(gray, edges, 50, 170, 3);
-/*
+	
+	/*
 	//threshold(gray, edges, 100, 255, CV_THRESH_OTSU);
 	adaptiveThreshold(edges, edges, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 5, 1);
 
@@ -48,17 +50,18 @@ int main(int argc, char** argv)
 	);
 
 	morphologyEx(edges, edgesOpened, MORPH_ERODE, element);
-*/
+	*/
 
 	namedWindow("Canny", 0);
 	resizeWindow("Canny", 600, 600);
 	imshow("Canny", edges);
 
+	/*
 	// Double check for the circles - Just the edge image at this moment produces a lot of false circles - when the Hough circles function is run
 	// Shortlisting good circle candidates by doing a contour analysis
 	vector<vector<Point>> contours, contoursfil;
 	vector<Vec4i> hierarchy;
-/*	Mat contourImg2 = Mat::ones(edges.rows, edges.cols, edges.type());
+	Mat contourImg2 = Mat::ones(edges.rows, edges.cols, edges.type());
 
 	//Find all contours in the edges image
 	findContours(edges.clone(), contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE);
@@ -78,20 +81,20 @@ int main(int argc, char** argv)
 	}
 	namedWindow("Contour Image Filtered", WINDOW_NORMAL);
 	resizeWindow("Contour Image Filtered", 600, 600);
-	imshow("Contour Image Filtered", contourImg2);*/
+	imshow("Contour Image Filtered", contourImg2);
+	*/
 
-	// good values for param-2 - for a image having circle contours = (75-90) ... for the edge image - (100-120)
 	vector<Vec3f> circles;
 
+	// Detects cricles from canny image. param 1 and param 2 values picked based on trial and error.
 	HoughCircles(edges, circles, CV_HOUGH_GRADIENT, 2, gray.rows / 9, 200, 100, 25, 90);
 
-	//struct to sort the vector of pairs <int,double> based on the second double value
+	//sort in descending based on radius
 	struct sort_pred {
 		bool operator()(const Vec3f &left, const Vec3f &right) {
 			return left[2]< right[2];
 		}
 	};
-	//sort in descending
 	std::sort(circles.rbegin(), circles.rend(), sort_pred());
 
 	float largestRadius = circles[0][2];
@@ -108,20 +111,19 @@ int main(int argc, char** argv)
 		Mat1b mask(imgScaled.size(), uchar(0));
     	circle(mask, Point(circles[i][0], circles[i][1]), circles[i][2], Scalar(255), CV_FILLED);
 		Scalar meanIntensity = mean(imgScaled, mask);
-		Scalar hsv = ScalarHSV2BGR(meanIntensity);
-/*
-		drawResult(
-			imgScaled, 
-			center, 
-			radius, 
-			to_string(i)+ "-?? euro"
-		);
+		Scalar hsv = ScalarBGR2HSV(meanIntensity);
 
-		cout <<  i << " ?? cents - " << hsv <<endl;*/
-
-		// If <= 13, 130-190, 60-100  then 5/2/1 cents
-		// Using an area ratio based discrimination
-		if (hsv[0] <=13 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=110){
+		/*
+		   Average colors were picked based on trial and error. 
+		   There is 3 categories:
+			- Pennies (color is hgsv(<= 13, 130-190, 60-110) then 5/2/1 cents)
+			- Big cents (color is hgsv(15-20, 54-127, 85-207) then 10/20/50 cents)
+			- Euros (color is hgsv(18-19, 110-160, 95-190) then 1/2 euros)			
+		   In each color category we differentiate coins based on the area of each coin compared to the 2 euro coin.
+		   Areas were picked based on trial and error
+		*/
+		if (hsv[0] <=13 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=110)
+		{
 			if ((ratio >= 0.75) && (ratio<.95))
 			{
 				drawResult(
@@ -158,11 +160,9 @@ int main(int argc, char** argv)
 				coins = coins + 1;
 				cout <<  i << " 1 cent - " << hsv <<endl;
 			}
-			continue;			
 		} 
-
-		if (hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210){
-			//15-20 54-127 85-207
+		else if (hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210)
+		{
 			if (ratio >= 0.85)
 			{
 				drawResult(
@@ -187,11 +187,9 @@ int main(int argc, char** argv)
 				coins = coins + 1;
 				cout << i << " 1 euro - " << hsv <<endl;
 			}
-			continue;
-		}
-		
-		if (hsv[0] >= 18 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=160 && hsv[2] >= 95 && hsv[2] <=190){
-			// 18-19, 110-160, 95-190
+		} 
+		else if (hsv[0] >= 18 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=160 && hsv[2] >= 95 && hsv[2] <=190)
+		{
 			if (ratio >= 0.90)
 			{
 				drawResult(
@@ -228,8 +226,17 @@ int main(int argc, char** argv)
 				coins = coins + 1;
 				cout << i << " 10 cents - " << hsv <<endl;
 			}
-		} 
-		continue;
+		}
+		/*
+		drawResult(
+			imgScaled, 
+			center, 
+			radius, 
+			to_string(i)+ "-?? euro"
+		);
+
+		cout <<  i << " ?? cents - " << hsv <<endl;
+		*/ 
 	}
 
 	putText(
@@ -252,13 +259,15 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-Scalar ScalarHSV2BGR(Scalar scalar) {
+// Converts a RGB Scalar to a HSV Scalar
+Scalar ScalarBGR2HSV(Scalar scalar) {
     Mat hsv;
     Mat rgb(1,1, CV_8UC3, scalar);
     cvtColor(rgb, hsv, CV_BGR2HSV);
     return Scalar(hsv.data[0], hsv.data[1], hsv.data[2]);
 }
 
+// Converts image to square image of side target_width. Crops remains, meaning it doesn't stretch the img.
 Mat getSquareImage(const cv::Mat& img, int target_width)
 {
     int width = img.cols,
@@ -289,6 +298,7 @@ Mat getSquareImage(const cv::Mat& img, int target_width)
     return square;
 }
 
+// Draws a highlight in each coin and writes it's value on the side
 void drawResult(Mat img, Point center, float radius, string text) 
 {
 	// draw the circle center
