@@ -5,7 +5,8 @@
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/highgui.hpp"
 #include <opencv2/objdetect.hpp>
-#include <string> 
+#include <string>
+#include "money_detect.h"
 
 #include <iostream>
 
@@ -79,7 +80,7 @@ void fillEdgeImage(Mat edgesIn, Mat& filledEdgesOut)
 }
 
 // returns sequence of squares detected on the image.
-static vector<Rect> findSquares( const Mat& image, vector<vector<Point> >& squares )
+static vector<Rect> findSquares( const Mat image, vector<vector<Point> >& squares )
 {
     squares.clear();
 
@@ -334,29 +335,10 @@ static void drawSquares( Mat& image, const vector<vector<Point> >& squares )
 }
 
 
-int main(int argc, char** argv)
-{
-    
-    string filename;
-    help(argv[0]);
-
-    if( argc > 1)
-    {
-     filename =  argv[1];
-    }
-
+MoneyDetection detectBill(Mat image){
     vector<vector<Point> > squares;
-
-    
-    Mat imageOriginal = imread(filename, IMREAD_COLOR);
-    Mat image = imread(filename, IMREAD_COLOR);
-    if( image.empty() ){
-        cout << "Couldn't load " << filename << endl;
-        return 1;
-    }
-
     vector<Rect> rects = findSquares(image, squares);
-    vector<Mat> notesImages = drawSquares(imageOriginal, rects);
+    vector<Mat> notesImages = drawSquares(image, rects);
     for( size_t i = 0; i < notesImages.size(); i++ ){
         Mat noteImage = notesImages[i];
         //noteImage = quantizeImage(noteImage, 4);
@@ -369,7 +351,31 @@ int main(int argc, char** argv)
         resizeWindow(name, 800, 800);
         imshow(name, noteImage);
     }
+    MoneyDetection moneyDetect = {
+		.identifiedMoneyImage = image,
+		.totalValue = 0
+	};
+    return moneyDetect;
+}
 
+int main(int argc, char** argv)
+{
+    
+    string filename;
+    help(argv[0]);
+
+    if( argc > 1)
+    {
+     filename =  argv[1];
+    }
+
+    Mat imageOriginal = imread(filename, IMREAD_COLOR);
+    Mat image = imread(filename, IMREAD_COLOR);
+    if( image.empty() ){
+        cout << "Couldn't load " << filename << endl;
+        return 1;
+    }
+    detectBill(image);
     int c = waitKey();
         
     return 0;

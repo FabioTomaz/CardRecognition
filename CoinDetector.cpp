@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include<iostream>
+#include "money_detect.h"
 
 using namespace cv;
 using namespace std;
@@ -11,15 +12,8 @@ Mat getSquareImage( const cv::Mat& img, int target_width);
 
 void drawResult(Mat img, Point center, float radius, string text);
 
-int main(int argc, char** argv)
-{
-	Mat img, imgScaled, gray;
-	img = imread(argv[1]);
-	if (img.empty()) {
-		cout << "Wrong file or unexistant!" <<endl;
-		return -1; 
-	}
-
+MoneyDetection detectCoins(Mat img){
+	Mat imgScaled, gray;
 	imgScaled = getSquareImage(img, 600);
 
 	cvtColor(imgScaled, gray, CV_BGR2GRAY);
@@ -38,7 +32,6 @@ int main(int argc, char** argv)
 	/*
 	//threshold(gray, edges, 100, 255, CV_THRESH_OTSU);
 	adaptiveThreshold(edges, edges, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 5, 1);
-
 	//Morphology
 	//Dilation
 	int dilation_type = MORPH_CROSS; // dilation_type = MORPH_RECT,MORPH_CROSS,MORPH_ELLIPSE
@@ -48,7 +41,6 @@ int main(int argc, char** argv)
 		Size(2 * dilation_size + 1, 2 * dilation_size + 1),
 		Point(dilation_size, dilation_size)
 	);
-
 	morphologyEx(edges, edgesOpened, MORPH_ERODE, element);
 	*/
 
@@ -62,10 +54,8 @@ int main(int argc, char** argv)
 	vector<vector<Point>> contours, contoursfil;
 	vector<Vec4i> hierarchy;
 	Mat contourImg2 = Mat::ones(edges.rows, edges.cols, edges.type());
-
 	//Find all contours in the edges image
 	findContours(edges.clone(), contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE);
-
 	for (int j = 0; j < contours.size(); j++)
 	{
 		//Only give me contours that are closed (i.e. they have 0 or more children : hierarchy[j][2] >= 0) AND contours that dont have any parent (i.e. hierarchy[j][3] < 0 )
@@ -74,7 +64,6 @@ int main(int argc, char** argv)
 			contoursfil.push_back(contours[j]);
 		}
 	}
-
 	for (int j = 0; j < contoursfil.size(); j++)
 	{
 		drawContours(contourImg2, contoursfil, j, CV_RGB(255, 255, 255), 1, 8);
@@ -234,9 +223,9 @@ int main(int argc, char** argv)
 			radius, 
 			to_string(i)+ "-?? euro"
 		);
-
 		cout <<  i << " ?? cents - " << hsv <<endl;
 		*/ 
+
 	}
 
 	putText(
@@ -249,10 +238,27 @@ int main(int argc, char** argv)
 		0.6, 
 		CV_AA
 	);
+	MoneyDetection moneyDetect = {
+		.identifiedMoneyImage = imgScaled,
+		.totalValue = change
+	};
+	return moneyDetect;
+}
+
+int main(int argc, char** argv)
+{
+	Mat img;
+	img = imread(argv[1]);
+	if (img.empty()) {
+		cout << "Wrong file or unexistant!" <<endl;
+		return -1; 
+	}
+
+	MoneyDetection moneyDetected = detectCoins(img);
 
 	namedWindow("Result", WINDOW_NORMAL);
 	resizeWindow("Result", 600, 600);
-	imshow("Result", imgScaled);
+	imshow("Result", moneyDetected.identifiedMoneyImage);
 
 	waitKey();
 
