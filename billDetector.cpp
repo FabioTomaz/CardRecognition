@@ -25,9 +25,6 @@ static void help(const char* programName)
 }
 
 
-int thresh = 50, N = 2;
-const char* wndname = "Square Detection Demo";
-
 // helper function:
 // finds a cosine of angle between vectors
 // from pt0->pt1 and from pt0->pt2
@@ -39,23 +36,6 @@ static double angle( Point pt1, Point pt2, Point pt0 )
     double dy2 = pt2.y - pt0.y;
     return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
 }
-
-/**
-Some contour detection detect the outer border of the image as a rectangle.. remove that
-**/
-/*static bool noRectangleOverImage(Mat img, vector<Point> rect){
-    double imgSize = img.size().width * img.size().height;
-    double rectSize = fabs(contourArea(rect));
-    double diff = imgSize - rectSize;
-    double percent = (diff*100)/imgSize;
-    cout << imgSize <<" - "<< rectSize<<": " << percent<<endl;
-    if ( (imgSize - rectSize) <= 0.01){
-         
-        //the diference of areas is too small: consider that the border of the image was detected as a square
-        return true;
-    } 
-    return false;
-}*/
 
 static bool noRectangleOverImage(Mat img, vector<Point> rect){
     double imgHeight = img.size().height;
@@ -80,10 +60,10 @@ void fillEdgeImage(Mat edgesIn, Mat& filledEdgesOut)
 }
 
 // returns sequence of squares detected on the image.
-static vector<Rect> findSquares( const Mat image, vector<vector<Point> >& squares )
+static vector<Rect> findSquares( Mat image, vector<vector<Point> >& squares )
 {
     squares.clear();
-
+    int thresh = 50, N = 2;
     
     /*Mat greyMat, colorMat, binaryMat;
     cvtColor(image, greyMat, COLOR_BGR2GRAY);
@@ -118,6 +98,10 @@ static vector<Rect> findSquares( const Mat image, vector<vector<Point> >& square
     //pyrDown(image, pyr, Size(image.cols/2, image.rows/2));
     //pyrUp(pyr, timg, image.size());
     vector<vector<Point> > contours;
+
+    namedWindow("name", WINDOW_NORMAL);
+    resizeWindow("name", 800, 800);
+    imshow("name", gray0);
 
     // find squares in every color plane of the image
     for( int c = 0; c < 3; c++ )
@@ -156,9 +140,9 @@ static vector<Rect> findSquares( const Mat image, vector<vector<Point> >& square
             name+= cstring;
             name+= ", ";
             name+= to_string(l);
-            namedWindow(name, WINDOW_NORMAL);
+            /*namedWindow(name, WINDOW_NORMAL);
             resizeWindow(name, 800, 800);
-            imshow(name, gray);
+            imshow(name, gray);*/
 
             vector<Point> approx;
 
@@ -232,60 +216,28 @@ Mat quantizeImage(const cv::Mat& inImage, int numBits)
         return retImage;
 }
 
+// Converts a RGB Scalar to a HSV Scalar
+Scalar ScalarBGR2HSV2(Scalar scalar) {
+    Mat hsv;
+    Mat rgb(1,1, CV_8UC3, scalar);
+    cvtColor(rgb, hsv, CV_BGR2HSV);
+    //rectangle(hsv, Point(0, 0), Point(25, 50), 
+    //Scalar(hsv.data[0], hsv.data[1], hsv.data[2]), CV_FILLED);
+    string name = "image ";
+        namedWindow(name, WINDOW_NORMAL);
+        resizeWindow(name, 800, 800);
+        imshow(name, rgb);
+    return Scalar(hsv.data[0], hsv.data[1], hsv.data[2]);
+}
 
-static void getDominantHSVColor(Mat image){
-     //vector<Mat> channels;
-        Mat image_hsv;
-        cvtColor(image, image_hsv, CV_BGR2HSV);
-        // Quanta Ratio
-        int scale = 10;
 
-        int hbins = 36, sbins = 25, vbins = 25;
-        int histSize[] = {hbins, sbins, vbins};
-
-        float hranges[] = { 0, 180 };
-        float sranges[] = { 0, 256 };
-        float vranges[] = { 0, 256 };
-
-        const float* ranges[] = { hranges, sranges, vranges };
-        MatND hist;
-
-        int channels[] = {0, 1, 2};
-
-        calcHist( &image_hsv, 1, channels, Mat(), // do not use mask
-                hist, 3, histSize, ranges,
-                true, // the histogram is uniform
-                false );
-
-        int maxVal = 0;
-
-        int hue = 0; 
-        int saturation = 0; 
-        int value = 0; 
-
-        for( int h = 0; h < hbins; h++ )
-            for( int s = 0; s < sbins; s++ )
-                for( int v = 0; v < vbins; v++ )
-                    {
-                        int binVal = hist.at<int>(h, s, v);
-                        if(binVal > maxVal)
-                        {
-                            maxVal = binVal;
-
-                            hue = h;
-                            saturation = s;
-                            value = v;
-                        }
-                    }
-
-        hue = hue * scale; // angle 0 - 360
-        saturation = saturation * scale; // 0 - 255
-        value = value * scale; // 0 - 255
-
-        //cout << hue <<", " <<saturation <<", " <<value<<  endl;
-        Mat1b mask(image.size(), uchar(0));
-        Scalar meanIntensity = mean(image);
-        cout << meanIntensity << endl;
+static Scalar getDominantHSVColor(Mat image){
+    Mat1b mask(image.size(), uchar(0));
+    Scalar meanIntensity = mean(image);
+    cout << meanIntensity << endl;
+    Scalar hsv = ScalarBGR2HSV2(meanIntensity);
+    cout << hsv << endl;
+    return hsv;
 }
 
 static Mat cropImage(Mat image, int offset){
@@ -296,12 +248,12 @@ static Mat cropImage(Mat image, int offset){
     roi.y = offset_y;
     roi.width = image.size().width - (offset_x*2);
     roi.height = image.size().height - (offset_y*2);
-    return image(roi);;
+    return image(roi);
 
 }
 
 // the function draws all the squares in the image using rectangles
-static vector<Mat> drawSquares( Mat& image, const vector<Rect>& squares )
+static vector<Mat> drawSquares( Mat image, const vector<Rect>& squares )
 {
     vector<Mat> notesImages;
     Mat image2;
@@ -315,6 +267,7 @@ static vector<Mat> drawSquares( Mat& image, const vector<Rect>& squares )
         notesImages.push_back(noteImage);
         rectangle(image, rect, Scalar(0,255,0), 3, LINE_AA); //draw rectangle surrounding the note
     }
+    const char* wndname = "Bill Detection Demo";
     namedWindow(wndname, WINDOW_NORMAL);
     resizeWindow(wndname, 800, 800);
     imshow(wndname, image);
@@ -329,23 +282,28 @@ static void drawSquares( Mat& image, const vector<vector<Point> >& squares )
         int n = (int)squares[i].size();
         polylines(image, &p, &n, 1, true, Scalar(0,255,0), 3, LINE_AA);
     }
+    const char* wndname = "Bill Detection Demo";
     namedWindow(wndname, WINDOW_NORMAL);
     resizeWindow(wndname, 800, 800);
     imshow(wndname, image);
 }
 
 
-MoneyDetection detectBill(Mat image){
+MoneyDetection detectBill(Mat image, Mat imageToDraw, int writeTotal){
+    if (imageToDraw.empty()){
+		image.copyTo(imageToDraw);
+	}
+    int total = 0;
     vector<vector<Point> > squares;
     vector<Rect> rects = findSquares(image, squares);
-    vector<Mat> notesImages = drawSquares(image, rects);
+    vector<Mat> notesImages = drawSquares(imageToDraw, rects);
     for( size_t i = 0; i < notesImages.size(); i++ ){
         Mat noteImage = notesImages[i];
         //noteImage = quantizeImage(noteImage, 4);
         string name = "note ";
         name+= to_string(i);
         cout <<name<<endl;
-        getDominantHSVColor(noteImage);
+        Scalar hsvColor = getDominantHSVColor(noteImage);
 
         namedWindow(name, WINDOW_NORMAL);
         resizeWindow(name, 800, 800);
@@ -353,7 +311,8 @@ MoneyDetection detectBill(Mat image){
     }
     MoneyDetection moneyDetect = {
 		.identifiedMoneyImage = image,
-		.totalValue = 0
+		.totalValue = 0,
+        .nElements = 0
 	};
     return moneyDetect;
 }
@@ -375,7 +334,7 @@ int main(int argc, char** argv)
         cout << "Couldn't load " << filename << endl;
         return 1;
     }
-    detectBill(image);
+    detectBill(image, Mat(), 1);
     int c = waitKey();
         
     return 0;
