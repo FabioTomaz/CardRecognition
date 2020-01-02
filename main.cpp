@@ -95,7 +95,7 @@ class BillDetection
         
         vector<vector<Point> > squares;
         vector<Rect> rects = findSquares(image, squares);
-        vector<Mat> notesImages = drawSquares(imageToDraw, rects);
+        vector<Mat> notesImages = drawSquares(image, imageToDraw, rects);
         for( size_t i = 0; i < notesImages.size(); i++ ){
             Mat noteImage = notesImages[i];
             //noteImage = quantizeImage(noteImage, 4);
@@ -299,19 +299,17 @@ class BillDetection
     }
 
     // the function draws all the squares in the image using rectangles
-    vector<Mat> drawSquares( Mat& image, const vector<Rect>& squares )
+    vector<Mat> drawSquares( Mat image, Mat& imageToDraw, const vector<Rect>& squares )
     {
         vector<Mat> notesImages;
-        Mat image2;
-        image.copyTo(image2); //avoid deep copy..
         for( size_t i = 0; i < squares.size(); i++ )
         {
             Rect rect = squares[i];
-            Mat noteImage (image2, rect);
+            Mat noteImage(image, rect);
             //crop a little the image to exclude any possible background of the bill
             noteImage = cropImage(noteImage, 10);
             notesImages.push_back(noteImage);
-            rectangle(image, rect, Scalar(0,255,0), 3, LINE_AA); //draw rectangle surrounding the note
+            rectangle(imageToDraw, rect, Scalar(0,255,0), 3, LINE_AA); //draw rectangle surrounding the note
         }
         const char* wndname = "Bill Detection Demo";
         /*namedWindow(wndname, WINDOW_NORMAL);
@@ -663,17 +661,18 @@ int main(int argc, char** argv)
     }
     
     if (checkCoin && checkBill){
-        //coin detection
-        CoinDetection coinDetection;
-        MoneyDetection coinsDetected = coinDetection.detectCoins(imageOriginal, Mat());
         
         //bill detection
         BillDetection billDetection;
-        MoneyDetection billsDetected = billDetection.detectBill(imageOriginal, coinsDetected.identifiedMoneyImage);//draw the identified bills on top of the drawn identified coins
-            
+        MoneyDetection billsDetected = billDetection.detectBill(imageOriginal, Mat());//draw the identified bills on top of the drawn identified coin
+
+        //coin detection
+        CoinDetection coinDetection;
+        MoneyDetection coinsDetected = coinDetection.detectCoins(imageOriginal, getSquareImage(billsDetected.identifiedMoneyImage, 600));
+        
         //write total money text in the image with identified elements
         int total = billsDetected.totalValue + coinsDetected.totalValue;
-        Mat drawnImage = getSquareImage(billsDetected.identifiedMoneyImage, 600);
+        Mat drawnImage = coinsDetected.identifiedMoneyImage;
         putText(
             drawnImage, 
             "Coins: " + to_string(coinsDetected.nElements) + "; Bills: " + to_string(billsDetected.nElements) + " Total Money:" + to_string(total) + " euros", 
