@@ -24,7 +24,7 @@ static void help(const char* programName)
 
 struct MoneyDetection {
     cv::Mat identifiedMoneyImage;
-    int totalValue;
+    float totalValue;
     int nElements;
 };
 
@@ -36,9 +36,6 @@ Scalar ScalarBGR2HSV(Scalar scalar) {
     Mat hsv;
     Mat rgb(1,1, CV_8UC3, scalar);
     cvtColor(rgb, hsv, CV_BGR2HSV);
-    namedWindow("hsv", WINDOW_NORMAL);
-        resizeWindow("hsv", 800, 800);
-        imshow("hsv", rgb);
     return Scalar(hsv.data[0], hsv.data[1], hsv.data[2]);
 }
 
@@ -427,12 +424,12 @@ class BillDetection
 
 class CoinDetection 
 { 
-    Mat imgScaled;
     public: 
     // Given an image, returns in a struct the original image with drawings surrounding the identified coins, total ammount and number of coins.
     //second argument is an image to draw circles surrounding the identified elements. If empty, the original image is used to draw
     MoneyDetection detectCoins(Mat img, Mat imageToDraw){
-        Mat gray;
+        Mat gray, imgScaled;
+        
         imgScaled = getSquareImage(img, 600);
 
         if (imageToDraw.empty()){
@@ -521,7 +518,7 @@ class CoinDetection
             allCircles.begin(), 
             allCircles.end(), 
             back_inserter(circles), 
-            [](Vec3f circle){
+            [&imgScaled](Vec3f circle){
                 Scalar hsv = getMeanCircleHSV(imgScaled, circle);
                 return (hsv[0] >=8 && hsv[0] <=17 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135) ||
                     (hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210) ||
@@ -692,17 +689,6 @@ class CoinDetection
             
 
         }
-
-        /*putText(
-            imgScaled, 
-            "Coins: " + to_string(coins) + " // Total Money:" + to_string(change), 
-            Point(imgScaled.cols / 10, imgScaled.rows - imgScaled.rows / 10), 
-            FONT_HERSHEY_COMPLEX_SMALL, 
-            0.7, 
-            Scalar(0, 255, 255), 
-            0.6, 
-            CV_AA
-        );*/
 
         MoneyDetection moneyDetect = {
             .identifiedMoneyImage = imageToDraw,
