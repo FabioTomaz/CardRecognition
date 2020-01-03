@@ -36,6 +36,9 @@ Scalar ScalarBGR2HSV(Scalar scalar) {
     Mat hsv;
     Mat rgb(1,1, CV_8UC3, scalar);
     cvtColor(rgb, hsv, CV_BGR2HSV);
+    namedWindow("hsv", WINDOW_NORMAL);
+        resizeWindow("hsv", 800, 800);
+        imshow("hsv", rgb);
     return Scalar(hsv.data[0], hsv.data[1], hsv.data[2]);
 }
 
@@ -103,15 +106,17 @@ class BillDetection
             name+= to_string(i);
             cout <<name<<endl;
             Scalar hsvColor = getDominantHSVColor(noteImage);
+            int value = classifyBill(hsvColor);
+            total += value;
 
-            /*namedWindow(name, WINDOW_NORMAL);
+            namedWindow(name, WINDOW_NORMAL);
             resizeWindow(name, 800, 800);
-            imshow(name, noteImage);*/
+            imshow(name, noteImage);
         }
         MoneyDetection moneyDetect = {
             .identifiedMoneyImage = imageToDraw,
-            .totalValue = 0,
-            .nElements = 0
+            .totalValue = total,
+            .nElements = notesImages.size()
         };
         //waitKey();
         return moneyDetect;
@@ -130,6 +135,20 @@ class BillDetection
         return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
     }
 
+    int classifyBill(Scalar hsv){
+        Scalar HSV500 = Scalar(157, 48, 191);
+
+        int Hdelta = 30;
+        int Sdelta = 60;
+        int Vdelta = 60;
+        if ((hsv[0] <= HSV500[0] + Hdelta && hsv[0] >= abs(HSV500[0] - Hdelta)) && (hsv[1] <= HSV500[1] + Sdelta && hsv[1] >=abs(HSV500[1] - Sdelta)) 
+            && (hsv[2] <= HSV500[2] + Vdelta && hsv[2] >=abs(HSV500[2] - Vdelta))){
+                cout << to_string(500) <<endl;
+            return 500;
+        }
+        return 0;
+    }
+
 
     void fillEdgeImage(Mat edgesIn, Mat& filledEdgesOut)
     {
@@ -146,7 +165,7 @@ class BillDetection
     static vector<Rect> findSquares( Mat image, vector<vector<Point> >& squares )
     {
         squares.clear();
-        int thresh = 50, N = 2;
+        int thresh = 50, N = 11;
         
         /*Mat greyMat, colorMat, binaryMat;
         cvtColor(image, greyMat, COLOR_BGR2GRAY);
@@ -163,7 +182,7 @@ class BillDetection
         Mat sharpening_kernel = (Mat_<double>(3, 3) << -1, -1, -1,
             -1, 9, -1,
             -1, -1, -1);
-        filter2D(blurred, sharp, CV_8U, sharpening_kernel);
+        //filter2D(blurred, sharp, CV_8U, sharpening_kernel);
 
         //GaussianBlur(image, blurred, Size(9, 9), 8);
 
@@ -223,9 +242,9 @@ class BillDetection
                 name+= cstring;
                 name+= ", ";
                 name+= to_string(l);
-                /*namedWindow(name, WINDOW_NORMAL);
+                namedWindow(name, WINDOW_NORMAL);
                 resizeWindow(name, 800, 800);
-                imshow(name, gray);*/
+                imshow(name, gray);
 
                 vector<Point> approx;
 
