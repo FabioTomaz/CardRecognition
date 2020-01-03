@@ -107,6 +107,7 @@ class BillDetection
             cout <<name<<endl;
             Scalar hsvColor = getDominantHSVColor(noteImage);
             int value = classifyBill(hsvColor);
+            cout <<"value: " << to_string(value)<<endl;
             total += value;
 
             namedWindow(name, WINDOW_NORMAL);
@@ -136,17 +137,95 @@ class BillDetection
     }
 
     int classifyBill(Scalar hsv){
-        Scalar HSV500 = Scalar(157, 48, 191);
+        /*Scalar HSV500 = Scalar(158, 69, 174);
+        Scalar HSV200 = Scalar(13, 122, 167);
+        Scalar HSV100 = Scalar(47, 41, 166);
+        Scalar HSV50 = Scalar(7, 110, 190);
+        Scalar HSV20 = Scalar(113, 15, 154);
+        Scalar HSV10 = Scalar(178, 120, 194);
+        Scalar HSV5 = Scalar(14, 49, 162);*/
+        Scalar HSV500Lower = Scalar(135, 60, 20); //pink
+        Scalar HSV500Upper = Scalar(165, 255, 255); //pink color
 
-        int Hdelta = 30;
-        int Sdelta = 60;
-        int Vdelta = 60;
-        if ((hsv[0] <= HSV500[0] + Hdelta && hsv[0] >= abs(HSV500[0] - Hdelta)) && (hsv[1] <= HSV500[1] + Sdelta && hsv[1] >=abs(HSV500[1] - Sdelta)) 
-            && (hsv[2] <= HSV500[2] + Vdelta && hsv[2] >=abs(HSV500[2] - Vdelta))){
-                cout << to_string(500) <<endl;
+        Scalar HSV200Lower = Scalar(10, 70, 20); //yellow color
+        Scalar HSV200Upper = Scalar(32, 200, 255); //yellow color
+
+        Scalar HSV100Lower = Scalar(40, 30, 20); //green color
+        Scalar HSV100Upper = Scalar(65, 255, 255); //green color
+
+        Scalar HSV50Lower = Scalar(5, 60, 20); //orange color
+        Scalar HSV50Upper = Scalar(22, 220, 255); //orange color
+
+        Scalar HSV20Lower = Scalar(85, 0, 20); //blue - gray  color
+        Scalar HSV20Upper = Scalar(120, 220, 255); //blue color
+        
+        Scalar HSV10Lower = Scalar(0, 50, 20); //red  color
+        Scalar HSV10Upper = Scalar(10, 220, 255); //red color
+        //red color is between 175 - 10 in H scale
+        Scalar HSV10Lower_2 = Scalar(175, 50, 20); //red  color
+        Scalar HSV10Upper_2 = Scalar(180, 220, 255); //red color
+
+        Scalar HSV5Lower = Scalar(8, 0, 20);  //grayish green
+        Scalar HSV5Upper = Scalar(60, 70, 255);  //grayish green
+
+        if (numberInRange(HSV500Lower[0], HSV500Upper[0], hsv[0]) && 
+                numberInRange( HSV500Lower[1], HSV500Upper[1], hsv[1]) &&
+                numberInRange( HSV500Lower[2], HSV500Upper[2], hsv[2])){
             return 500;
         }
+        else if (numberInRange(HSV200Lower[0], HSV200Upper[0], hsv[0]) && 
+                numberInRange( HSV200Lower[1], HSV200Upper[1], hsv[1]) &&
+                numberInRange( HSV200Lower[2], HSV200Upper[2], hsv[2])){
+            return 200;
+        }
+        else if (numberInRange(HSV100Lower[0], HSV100Upper[0], hsv[0]) && 
+                numberInRange( HSV100Lower[1], HSV100Upper[1], hsv[1]) &&
+                numberInRange( HSV100Lower[2], HSV100Upper[2], hsv[2])){
+            return 100;
+        }
+        else if (numberInRange(HSV50Lower[0], HSV50Upper[0], hsv[0]) && 
+                numberInRange( HSV50Lower[1], HSV50Upper[1], hsv[1]) &&
+                numberInRange( HSV50Lower[2], HSV50Upper[2], hsv[2])){
+            return 50;
+        }
+        else if (numberInRange(HSV20Lower[0], HSV20Upper[0], hsv[0]) && 
+                numberInRange( HSV20Lower[1], HSV20Upper[1], hsv[1]) &&
+                numberInRange( HSV20Lower[2], HSV20Upper[2], hsv[2])){
+            return 20;
+        }
+        else if ( ( numberInRange(HSV10Lower[0], HSV10Upper[0], hsv[0]) && 
+                numberInRange( HSV10Lower[1], HSV10Upper[1], hsv[1]) &&
+                numberInRange( HSV10Lower[2], HSV10Upper[2], hsv[2]) ) || numberInRange(HSV10Lower_2[0], HSV10Upper_2[0], hsv[0]) && 
+                numberInRange( HSV10Lower_2[1], HSV10Upper_2[1], hsv[1]) &&
+                numberInRange( HSV10Lower_2[2], HSV10Upper_2[2], hsv[2])){
+            return 10;
+        }
+        else if (numberInRange(HSV5Lower[0], HSV5Upper[0], hsv[0]) && 
+                numberInRange( HSV5Lower[1], HSV5Upper[1], hsv[1]) &&
+                numberInRange( HSV5Lower[2], HSV5Upper[2], hsv[2])){
+            return 5;
+        }
         return 0;
+    }
+
+    int numberInRange(int lower, int upper, int n){
+        return ( n <= upper && n >= lower );
+    }
+    int limitUpperNumber(int n, int limit){
+        if (n < limit){
+            return limit;
+        }
+        if (n > limit){
+            return limit;
+        }
+        return n;
+    }
+
+    int limitLowerNumber(int n, int limit){
+        if (n < limit){
+            return limit;
+        }
+        return n;
     }
 
 
@@ -304,6 +383,14 @@ class BillDetection
         return hsv;
     }
 
+    static Mat cropHalfImage(Mat image){
+        //crop half left
+        //Mat croppedFrame = image(Rect(0, 0, image.cols/2, image.rows));
+        //crop half right
+        Mat croppedFrame = image(Rect(image.cols/2, 0, image.cols/2, image.rows));
+        return croppedFrame;
+    }
+
     static Mat cropImage(Mat image, int offset){
         Rect roi;
         int offset_x = offset;
@@ -312,9 +399,7 @@ class BillDetection
         roi.y = offset_y;
         roi.width = image.size().width - (offset_x*2);
         roi.height = image.size().height - (offset_y*2);
-        
         return image(roi);
-
     }
 
     // the function draws all the squares in the image using rectangles
@@ -326,7 +411,8 @@ class BillDetection
             Rect rect = squares[i];
             Mat noteImage(image, rect);
             //crop a little the image to exclude any possible background of the bill
-            noteImage = cropImage(noteImage, 10);
+            noteImage = cropImage(noteImage, 20);
+            noteImage = cropHalfImage(noteImage);
             notesImages.push_back(noteImage);
             rectangle(imageToDraw, rect, Scalar(0,255,0), 3, LINE_AA); //draw rectangle surrounding the note
         }
