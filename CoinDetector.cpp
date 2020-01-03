@@ -25,10 +25,12 @@ float getCircularityThresh(vector<Point> cntr)
 
 }
 
+Mat imgScaled;
+
 MoneyDetection detectCoins(Mat img){
-	Mat imgScaled, gray;
 	imgScaled = getSquareImage(img, 600);
 
+	Mat gray;
 	cvtColor(imgScaled, gray, CV_BGR2GRAY);
 
 	// smooth it, otherwise a lot of false circles may be detected
@@ -102,21 +104,23 @@ MoneyDetection detectCoins(Mat img){
 	resizeWindow("Contour Image Filtered", 600, 600);
 	imshow("Contour Image Filtered", contourImg2);*/
 	
+	//HoughCircles(edges, circles, CV_HOUGH_GRADIENT, 2, gray.rows / 12, 200, 80, 20, 70);
+
 	// Detects cricles from canny image. param 1 and param 2 values picked based on trial and error.
-	HoughCircles(edges, circles, CV_HOUGH_GRADIENT, 2, gray.rows / 8, 200, 100, 20, 90);
+	HoughCircles(edges, allCircles, CV_HOUGH_GRADIENT, 2, gray.rows / 12, 200, 80, 20, 70);
 
 	// Filter circles
-	/*copy_if (
-		circles.begin(), 
-		circles.end(), 
-		back_inserter(allCircles), 
+	copy_if (
+		allCircles.begin(), 
+		allCircles.end(), 
+		back_inserter(circles), 
 		[](Vec3f circle){
 			Scalar hsv = getMeanCircleHSV(imgScaled, circle);
-			return (hsv[0] <=13 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135) ||
+			return (hsv[0] >=8 && hsv[0] <=17 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135) ||
 				   (hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210) ||
-				   (hsv[0] >= 18 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=160 && hsv[2] >= 95 && hsv[2] <=190);
+				   (hsv[0] >= 17 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=170 && hsv[2] >= 90 && hsv[2] <=195);
 		} 
-	);*/
+	);
 
 	//sort in descending based on radius
 	struct sort_pred {
@@ -153,9 +157,21 @@ MoneyDetection detectCoins(Mat img){
 		   In each color category we differentiate coins based on the area of each coin compared to the 2 euro coin.
 		   Areas were picked based on trial and error
 		*/
-		if (hsv[0] <=13 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135)
+
+		if(i==0) {
+			drawResult(
+				imgScaled, 
+				center, 
+				radius, 
+				to_string(i)+ "- 2 euros"
+			);
+			change = change + 2.00;
+			coins = coins + 1;
+			cout <<  i << " 2 euros - " << hsv <<endl;
+		} 
+		else if (hsv[0] >=8 && hsv[0] <=17 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135)
 		{
-			if ((ratio >= 0.75) && (ratio<.95))
+			if (ratio >= 0.70)
 			{
 				drawResult(
 					imgScaled, 
@@ -167,7 +183,7 @@ MoneyDetection detectCoins(Mat img){
 				coins = coins + 1;
 				cout <<  i << " 5 cents - " << hsv <<endl;
 			}
-			else if ((ratio >= 0.65) && (ratio<.75))
+			else if ((ratio >= 0.55) && (ratio<.70))
 			{
 				drawResult(
 					imgScaled, 
@@ -179,7 +195,7 @@ MoneyDetection detectCoins(Mat img){
 				coins = coins + 1;
 				cout <<  i << " 2 cents - " << hsv <<endl;
 			}
-			else if ((ratio >= 0.4) && (ratio<.65))
+			else if ((ratio >= 0.3) && (ratio<.55))
 			{
 				drawResult(
 					imgScaled, 
@@ -194,7 +210,7 @@ MoneyDetection detectCoins(Mat img){
 		} 
 		else if (hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210)
 		{
-			if (ratio >= 0.85)
+			if (ratio >= 0.90)
 			{
 				drawResult(
 					imgScaled, 
@@ -206,7 +222,7 @@ MoneyDetection detectCoins(Mat img){
 				coins = coins + 1;
 				cout << i << "2 euro - " << hsv <<endl;
 			}
-			else if ((ratio >= 0.40) && (ratio<85))
+			else if ((ratio >= 0.40) && (ratio<90))
 			{
 				drawResult(
 					imgScaled, 
@@ -219,9 +235,9 @@ MoneyDetection detectCoins(Mat img){
 				cout << i << " 1 euro - " << hsv <<endl;
 			}
 		} 
-		else if (hsv[0] >= 18 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=160 && hsv[2] >= 95 && hsv[2] <=190)
+		else if (hsv[0] >= 17 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=170 && hsv[2] >= 90 && hsv[2] <=195)
 		{
-			if (ratio >= 0.90)
+			if (ratio >= 0.85)
 			{
 				drawResult(
 					imgScaled, 
@@ -233,7 +249,7 @@ MoneyDetection detectCoins(Mat img){
 				coins = coins + 1;
 				cout << i << " 50 cents - " << hsv <<endl;
 			}
-			else if ((ratio >= 0.75) && (ratio<.90))
+			else if ((ratio >= 0.65) && (ratio<.85))
 			{
 				drawResult(
 					imgScaled, 
@@ -245,7 +261,7 @@ MoneyDetection detectCoins(Mat img){
 				coins = coins + 1;
 				cout << i << " 20 cents - " << hsv <<endl;
 			}
-			else if ((ratio >= 0.40) && (ratio<.75))
+			else if ((ratio >= 0.40) && (ratio<.65))
 			{
 				drawResult(
 					imgScaled, 
@@ -259,13 +275,13 @@ MoneyDetection detectCoins(Mat img){
 			}
 		}
 		
-		drawResult(
+		/*drawResult(
 			imgScaled, 
 			center, 
 			radius, 
 			to_string(i)+ "-?? euro"
 		);
-		cout <<  i << " ?? cents - " << hsv <<endl;
+		cout <<  i << " ?? cents - " << hsv <<endl;*/
 		
 
 	}
