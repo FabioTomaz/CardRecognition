@@ -424,18 +424,30 @@ class BillDetection
 
 class CoinDetection 
 { 
+
+    /*
+    There is 3 categories:
+        - Pennies (color is hgsv(<= 13, 130-190, 60-110) then 5/2/1 cents)
+        - Big cents (color is hgsv(15-20, 54-127, 85-207) then 10/20/50 cents)
+        - Euros (color is hgsv(18-19, 110-160, 95-190) then 1/2 euros)	
+    */
     private:
     
-    bool isEuro(Scalar hsv) {
+    bool isEuro(Mat img, Vec3f circ) {
+        Scalar hsv = getMeanCircleHSV(img, circ);
         return hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210;
     }
 
-    bool isPenny(Scalar hsv) {
-        return hsv[0] >=8 && hsv[0] <=17 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135;
+    bool isPenny(Mat img, Vec3f circ) {
+        circ[2] = 5;
+        Scalar hsv = getMeanCircleHSV(img, circ);
+        return hsv[0] >=8 && hsv[0] <=15 && hsv[1] >= 140 && hsv[1] <=200 && hsv[2] >= 60 && hsv[2] <=135;
     }
 
-    bool isMidCent(Scalar hsv) {
-        return hsv[0] >= 17 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=170 && hsv[2] >= 90 && hsv[2] <=195;
+    bool isMidCent(Mat img, Vec3f circ) {
+        circ[2] = 5;
+        Scalar hsv = getMeanCircleHSV(img, circ);
+        return hsv[0] >= 16 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=175 && hsv[2] >= 90 && hsv[2] <=205;
     }
 
     // Draws a highlight in each coin and writes it's value on the side
@@ -511,44 +523,6 @@ class CoinDetection
 
         
         vector<Vec3f> allCircles, circles;
-
-        // Double check for the circles - Just the edge image at this moment produces a lot of false circles - when the Hough circles function is run
-        // Shortlisting good circle candidates by doing a contour analysis
-        /*vector<vector<Point>> contours, contoursfil;
-        vector<Vec4i> hierarchy;
-        Mat contourImg2 = Mat::ones(edges.rows, edges.cols, edges.type());
-        float circThresh;
-        //Find all contours in the edges image
-        findContours(edges.clone(), contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE);
-        for (int j = 0; j < contours.size(); j++)
-        {
-            //Only give me contours that are closed (i.e. they have 0 or more children : hierarchy[j][2] >= 0) AND contours that dont have any parent (i.e. hierarchy[j][3] < 0 )
-            if ((hierarchy[j][2] >= 0) && (hierarchy[j][3] < 0))
-            {
-                contoursfil.push_back(contours[j]);
-            }
-
-            circThresh = getCircularityThresh(contours[j]);
-            cout <<  "Countors " << contourArea(Mat(contours[j])) << endl;
-            // Doing a quick compactness/circularity test on the contours P^2/A for the circle the perfect is 12.56 .. we give some room as we mostly are extracting elliptical shapes also
-            if ((circThresh > 5) && (circThresh <= 300))
-            {
-                contoursfil.push_back(contours[j]);
-            }
-            
-            Point2f center;
-            float radius;
-            minEnclosingCircle(contours[j], center, radius);
-            //cout << center << endl;
-            circles.push_back(Vec3f(center.x, center.y, radius));
-        }*/
-        /*for (int j = 0; j < contoursfil.size(); j++)
-        {
-            drawContours(contourImg2, contoursfil, j, CV_RGB(255, 255, 255), 1, 8);
-        }
-        namedWindow("Contour Image Filtered", WINDOW_NORMAL);
-        resizeWindow("Contour Image Filtered", 600, 600);
-        imshow("Contour Image Filtered", contourImg2);*/
         
         //HoughCircles(edges, circles, CV_HOUGH_GRADIENT, 2, gray.rows / 12, 200, 80, 20, 70);
 
@@ -561,10 +535,9 @@ class CoinDetection
             allCircles.end(), 
             back_inserter(circles), 
             [&imgScaled, this](Vec3f circle){
-                Scalar hsv = getMeanCircleHSV(imgScaled, circle);
-                return  isPenny(hsv) == true ||
-                        isEuro(hsv) == true ||
-                        isMidCent(hsv) == true;
+                return  isPenny(imgScaled, circle) == true ||
+                        isEuro(imgScaled, circle) == true ||
+                        isMidCent(imgScaled, circle) == true;
             } 
         );
 
@@ -592,19 +565,17 @@ class CoinDetection
             float radius = circles[i][2];
             ratio = ((radius*radius) / (largestRadius*largestRadius));
             
-            Scalar hsv = getMeanCircleHSV(imgScaled, circles[i]);
+            Vec3f newCirc = circles[i];
+            newCirc[2] = 5;
+            Scalar hsv = getMeanCircleHSV(imgScaled, newCirc);
 
             /*
-            Average colors were picked based on trial and error. 
-            There is 3 categories:
-                - Pennies (color is hgsv(<= 13, 130-190, 60-110) then 5/2/1 cents)
-                - Big cents (color is hgsv(15-20, 54-127, 85-207) then 10/20/50 cents)
-                - Euros (color is hgsv(18-19, 110-160, 95-190) then 1/2 euros)			
+            Average colors were picked based on trial and error. 		
             In each color category we differentiate coins based on the area of each coin compared to the 2 euro coin.
             Areas were picked based on trial and error
             */
 
-            if (isPenny(hsv))
+            if (isPenny(imgScaled, circles[i]))
             {
                 if (ratio >= 0.70)
                 {
@@ -643,7 +614,7 @@ class CoinDetection
                     cout <<  i << " 1 cent - " << hsv <<endl;
                 }
             } 
-            else if (isEuro(hsv))
+            else if (isEuro(imgScaled, circles[i]))
             {
                 if (ratio >= 0.90)
                 {
@@ -670,9 +641,9 @@ class CoinDetection
                     cout << i << " 1 euro - " << hsv <<endl;
                 }
             } 
-            else if (isMidCent(hsv))
+            else if (isMidCent(imgScaled, circles[i]))
             {
-                if (ratio >= 0.85)
+                if (ratio >= 0.80)
                 {
                     drawResult(
                         imageToDraw, 
@@ -684,7 +655,7 @@ class CoinDetection
                     coins = coins + 1;
                     cout << i << " 50 cents - " << hsv <<endl;
                 }
-                else if ((ratio >= 0.65) && (ratio<.85))
+                else if ((ratio >= 0.60) && (ratio<.80))
                 {
                     drawResult(
                         imageToDraw, 
@@ -696,7 +667,7 @@ class CoinDetection
                     coins = coins + 1;
                     cout << i << " 20 cents - " << hsv <<endl;
                 }
-                else if ((ratio >= 0.40) && (ratio<.65))
+                else if ((ratio >= 0.40) && (ratio<.60))
                 {
                     drawResult(
                         imageToDraw, 
@@ -709,15 +680,15 @@ class CoinDetection
                     cout << i << " 10 cents - " << hsv <<endl;
                 }
             }
-            
-            /*drawResult(
+            /*
+            drawResult(
                 imageToDraw, 
                 center, 
                 radius, 
                 to_string(i)+ "-?? euro"
             );
-            cout <<  i << " ?? cents - " << hsv <<endl;*/
-            
+            cout <<  i << " ?? cents - " << hsv <<endl;
+            */
 
         }
 
