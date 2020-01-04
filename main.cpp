@@ -424,6 +424,48 @@ class BillDetection
 
 class CoinDetection 
 { 
+    private:
+    
+    bool isEuro(Scalar hsv) {
+        return hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210;
+    }
+
+    bool isPenny(Scalar hsv) {
+        return hsv[0] >=8 && hsv[0] <=17 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135;
+    }
+
+    bool isMidCent(Scalar hsv) {
+        return hsv[0] >= 17 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=170 && hsv[2] >= 90 && hsv[2] <=195;
+    }
+
+    // Draws a highlight in each coin and writes it's value on the side
+    void drawResult(Mat img, Point center, float radius, string text) 
+    {
+        // draw the circle center
+        circle(img, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+        // draw the circle outline
+        circle(img, center, radius, Scalar(0, 0, 255), 2, 8, 0);
+        rectangle(
+            img, 
+            Point(center.x - radius - 5, center.y - radius - 5), 
+            Point(center.x + radius + 5, center.y + radius + 5), 
+            CV_RGB(0, 0, 255), 
+            1, 
+            8, 
+            0
+        ); //Opened contour - draw a green rectangle arpund circle
+        putText(
+            img, 
+            text, 
+            Point(center.x - radius, center.y + radius + 15), 
+            FONT_HERSHEY_COMPLEX_SMALL, 
+            0.7, 
+            Scalar(0, 255, 255), 
+            0.4, 
+            CV_AA
+        );
+    }
+
     public: 
     // Given an image, returns in a struct the original image with drawings surrounding the identified coins, total ammount and number of coins.
     //second argument is an image to draw circles surrounding the identified elements. If empty, the original image is used to draw
@@ -446,22 +488,22 @@ class CoinDetection
 
         Mat edges, edgesOpened;
 
-        Canny(gray, edges, 50, 170, 3);
+        Canny(gray, edgesOpened, 50, 170, 3);
         
-        /*
+        
         //threshold(gray, edges, 100, 255, CV_THRESH_OTSU);
-        adaptiveThreshold(edges, edges, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 5, 1);
+        //adaptiveThreshold(edges, edges, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 5, 1);
         //Morphology
         //Dilation
-        int dilation_type = MORPH_CROSS; // dilation_type = MORPH_RECT,MORPH_CROSS,MORPH_ELLIPSE
-        int dilation_size = 1;  
+        int dilation_type = MORPH_RECT; // dilation_type = MORPH_RECT,MORPH_CROSS,MORPH_ELLIPSE
+        int dilation_size = 3;  
         Mat element = getStructuringElement(
             dilation_type,
             Size(2 * dilation_size + 1, 2 * dilation_size + 1),
             Point(dilation_size, dilation_size)
         );
-        morphologyEx(edges, edgesOpened, MORPH_ERODE, element);
-        */
+        morphologyEx(edgesOpened, edges, MORPH_CLOSE, element);
+        
 
         namedWindow("Canny", 0);
         resizeWindow("Canny", 600, 600);
@@ -518,11 +560,11 @@ class CoinDetection
             allCircles.begin(), 
             allCircles.end(), 
             back_inserter(circles), 
-            [&imgScaled](Vec3f circle){
+            [&imgScaled, this](Vec3f circle){
                 Scalar hsv = getMeanCircleHSV(imgScaled, circle);
-                return (hsv[0] >=8 && hsv[0] <=17 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135) ||
-                    (hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210) ||
-                    (hsv[0] >= 17 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=170 && hsv[2] >= 90 && hsv[2] <=195);
+                return  isPenny(hsv) == true ||
+                        isEuro(hsv) == true ||
+                        isMidCent(hsv) == true;
             } 
         );
 
@@ -562,18 +604,7 @@ class CoinDetection
             Areas were picked based on trial and error
             */
 
-            if(i==0) {
-                drawResult(
-                    imageToDraw, 
-                    center, 
-                    radius, 
-                    to_string(i)+ "- 2 euros"
-                );
-                change = change + 2.00;
-                coins = coins + 1;
-                cout <<  i << " 2 euros - " << hsv <<endl;
-            } 
-            else if (hsv[0] >=8 && hsv[0] <=17 && hsv[1] >= 130 && hsv[1] <=190 && hsv[2] >= 60 && hsv[2] <=135)
+            if (isPenny(hsv))
             {
                 if (ratio >= 0.70)
                 {
@@ -612,7 +643,7 @@ class CoinDetection
                     cout <<  i << " 1 cent - " << hsv <<endl;
                 }
             } 
-            else if (hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210)
+            else if (isEuro(hsv))
             {
                 if (ratio >= 0.90)
                 {
@@ -639,7 +670,7 @@ class CoinDetection
                     cout << i << " 1 euro - " << hsv <<endl;
                 }
             } 
-            else if (hsv[0] >= 17 && hsv[0] <=20 && hsv[1] >= 110 && hsv[1] <=170 && hsv[2] >= 90 && hsv[2] <=195)
+            else if (isMidCent(hsv))
             {
                 if (ratio >= 0.85)
                 {
@@ -696,36 +727,6 @@ class CoinDetection
             .nElements = coins
         };
         return moneyDetect;
-    }
-
-
-    private:
-    // Draws a highlight in each coin and writes it's value on the side
-    void drawResult(Mat img, Point center, float radius, string text) 
-    {
-        // draw the circle center
-        circle(img, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-        // draw the circle outline
-        circle(img, center, radius, Scalar(0, 0, 255), 2, 8, 0);
-        rectangle(
-            img, 
-            Point(center.x - radius - 5, center.y - radius - 5), 
-            Point(center.x + radius + 5, center.y + radius + 5), 
-            CV_RGB(0, 0, 255), 
-            1, 
-            8, 
-            0
-        ); //Opened contour - draw a green rectangle arpund circle
-        putText(
-            img, 
-            text, 
-            Point(center.x - radius, center.y + radius + 15), 
-            FONT_HERSHEY_COMPLEX_SMALL, 
-            0.7, 
-            Scalar(0, 255, 255), 
-            0.4, 
-            CV_AA
-        );
     }
 
 }; 
