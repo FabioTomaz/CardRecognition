@@ -1,4 +1,3 @@
-//rectangle detection from: https://github.com/opencv/opencv/blob/master/samples/cpp/squares.cpp
 
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
@@ -30,7 +29,6 @@ struct MoneyDetection {
 
 /////////////////////     Helper functions  ///////////////////////////
 
-// Converts a RGB Scalar to a HSV Scalar
 // Converts a RGB Scalar to a HSV Scalar
 Scalar ScalarBGR2HSV(Scalar scalar) {
     Mat hsv;
@@ -76,6 +74,17 @@ Mat getSquareImage(const cv::Mat& img, int target_width)
     cv::resize( img, square( roi ), roi.size() );
 
     return square;
+}
+
+//helper function to detect and remove rectangles identified in the oberder of the image
+bool noRectangleOverImage(Mat img, vector<Point> rect){
+    double imgHeight = img.size().height;
+    double imgWidth = img.size().width;
+    if(find(rect.begin(), rect.end(), Point(0, 0)) != rect.end()) {
+        //contains
+        return false;
+    }
+    return true;
 }
 
 
@@ -134,13 +143,6 @@ class BillDetection
     }
 
     int classifyBill(Scalar hsv){
-        /*Scalar HSV500 = Scalar(158, 69, 174);
-        Scalar HSV200 = Scalar(13, 122, 167);
-        Scalar HSV100 = Scalar(47, 41, 166);
-        Scalar HSV50 = Scalar(7, 110, 190);
-        Scalar HSV20 = Scalar(113, 15, 154);
-        Scalar HSV10 = Scalar(178, 120, 194);
-        Scalar HSV5 = Scalar(14, 49, 162);*/
         Scalar HSV500Lower = Scalar(135, 60, 20); //pink
         Scalar HSV500Upper = Scalar(165, 255, 255); //pink color
 
@@ -163,7 +165,7 @@ class BillDetection
         Scalar HSV10Upper_2 = Scalar(180, 220, 255); //red color
 
         Scalar HSV5Lower = Scalar(8, 0, 20);  //grayish green
-        Scalar HSV5Upper = Scalar(60, 70, 255);  //grayish green
+        Scalar HSV5Upper = Scalar(100, 50, 255);  //grayish green
 
         if (numberInRange(HSV500Lower[0], HSV500Upper[0], hsv[0]) && 
                 numberInRange( HSV500Lower[1], HSV500Upper[1], hsv[1]) &&
@@ -242,26 +244,27 @@ class BillDetection
     {
         squares.clear();
         int thresh = 50, N = 11;
+
+        //image = contrastStretching(image, 150,50, 70, 200);
         
-        /*Mat greyMat, colorMat, binaryMat;
-        cvtColor(image, greyMat, COLOR_BGR2GRAY);
-        threshold(greyMat, binaryMat, 127,255,CV_THRESH_BINARY);
-        imshow("binary", greyMat);*/
 
-        // blur will enhance edge detection
-        //Mat imageInv;
-        //bitwise_not ( image, imageInv );
-        Mat blurred(image);
-        medianBlur(image, blurred, 9);
+        //floodFill(image, Point(0,0), Scalar(0, 0, 0), (Rect*)0, Scalar(10, 10, 10), Scalar(30, 30, 30));  
+        //floodFill(image, Point(0,0), Scalar(0, 0, 0));  
+        
+        /*namedWindow("gray", WINDOW_NORMAL);
+        resizeWindow("gray", 800, 800);
+        imshow("gray", image);*/
 
-        Mat sharp;
+        /*Mat sharp;
         Mat sharpening_kernel = (Mat_<double>(3, 3) << -1, -1, -1,
             -1, 9, -1,
-            -1, -1, -1);
+            -1, -1, -1);*/
         //filter2D(blurred, sharp, CV_8U, sharpening_kernel);
 
-        //GaussianBlur(image, blurred, Size(9, 9), 8);
-
+        //blurr to remove noise
+        Mat blurred;
+        //GaussianBlur(image, blurred, Size(9, 9), 3);
+        medianBlur(image, blurred, 7);
         // original, downscale and upscaler was used, changed to blurr : https://stackoverflow.com/questions/8667818/opencv-c-obj-c-detecting-a-sheet-of-paper-square-detection
         
         /*namedWindow("inverted", WINDOW_NORMAL);
@@ -270,22 +273,25 @@ class BillDetection
 
 
         Mat gray0(blurred.size(), CV_8U), gray, timg, pyr;
+
         //Mat pyr, timg, gray0(image.size(), CV_8U), gray;
 
-        // down-scale and upscale the image to filter out the noise
+        // down-scale and upscale the image to filter blurredout the noise
         //pyrDown(image, pyr, Size(image.cols/2, image.rows/2));
         //pyrUp(pyr, timg, image.size());
         vector<vector<Point> > contours;
 
-        /*namedWindow("name", WINDOW_NORMAL);
-        resizeWindow("name", 800, 800);
-        imshow("name", gray0);*/
+        //convert to gray scale
+        cvtColor(blurred, gray0, CV_BGR2GRAY);
+
+        Mat gray1;
+        gray0.copyTo(gray1);
+
 
         // find squares in every color plane of the image
-        for( int c = 0; c < 3; c++ )
-        {
+        /*for( int c = 0; c < 3; c++ ) {
             int ch[] = {c, 0};
-            mixChannels(&blurred, 1, &gray0, 1, ch, 1);
+            mixChannels(&blurred, 1, &gray0, 1, ch, 1);*/
 
             /*namedWindow("inverted", WINDOW_NORMAL);
             resizeWindow("inverted", 800, 800);
@@ -293,7 +299,7 @@ class BillDetection
 
 
             // try several threshold levels
-            for( int l = 0; l < N; l++ )
+            for( int l = 0; l < 2; l++ )
             {
                 // hack: use Canny instead of zero threshold level.
                 // Canny helps to catch squares with gradient shading
@@ -309,18 +315,75 @@ class BillDetection
                     //erode(gray, gray, Mat(), Point(-1,-1), 1);
                     
                 }
+                else{
+                    adaptiveThreshold(gray0, gray, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY,11,2);
+                    //wee need black as blackground
+                    //threshold(gray0, gray, 0,255,CV_THRESH_BINARY+CV_THRESH_OTSU);
+                    int nWhite = countNonZero(gray);
+                    int imageTotalPixels = gray.size().width * gray.size().height;
+                    if (nWhite > imageTotalPixels/2){
+                        //bigger number of white: white as background, apply inverse binary theshold
+                        //threshold(gray0, gray, 0,255,CV_THRESH_BINARY_INV+CV_THRESH_OTSU);
+                        adaptiveThreshold(gray0, gray, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY_INV,11,2);
+                    }
+                    //int morph_size = 3;
+                    //Mat element = getStructuringElement( MORPH_RECT, Size( 4*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
+   
+                    dilate(gray, gray, Mat(), Point(-1,-1),1);
+                }
 
-                // find contours and store them all as a list
-                findContours(gray, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE); //CV_RETR_EXTERNAL -> dont detect any inner squares inside the bills!
+                /*Mat drawing = Mat::zeros( gray.size(), CV_8U );
 
-                string cstring = to_string(c);
+                //convex hull
+                vector<vector<Point> >hull( contours.size() );
+                for (int i = 0; i < contours.size(); i++) {
+                    if (contourArea(contours[i])>5000) { // remove small areas like noise etc
+                        //convexHull(contours[i], hull);    // find the convex hull of contour
+                        convexHull( Mat(contours[i]), hull[i], false );
+                    }
+                } 
+                /// Draw contours + hull results
+                //Mat drawing = Mat::zeros( gray.size(), CV_8U );
+                
+                for( int i = 0; i< contours.size(); i++ )
+                    {
+                        Scalar color = Scalar( 255, 255, 255 );
+                        //drawContours( drawing, contours, i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+                        drawContours( drawing, hull, i, color, 1, 8, vector<Vec4i>(), 0, Point() );
+                    }*/
+    
+                // Standard Hough Line Transform
+                /*vector<Vec2f> lines; // will hold the results of the detection
+                HoughLines(drawing, lines, 1, CV_PI/180, 50, 0, 0 ); // runs the actual detection
+               
+                // Draw the lines
+                for( size_t i = 0; i < lines.size(); i++ )
+                {
+                    float rho = lines[i][0], theta = lines[i][1];
+                    Point pt1, pt2;
+                    double a = cos(theta), b = sin(theta);
+                    double x0 = a*rho, y0 = b*rho;
+                    pt1.x = cvRound(x0 + 1000*(-b));
+                    pt1.y = cvRound(y0 + 1000*(a));
+                    pt2.x = cvRound(x0 - 1000*(-b));
+                    pt2.y = cvRound(y0 - 1000*(a));
+                    line( drawing, pt1, pt2, Scalar(255,255,255), 1, LINE_AA);
+                }*/
+
+                
+                //string cstring = to_string(c);
                 string name = "median blurred ";
-                name+= cstring;
+                //name+= cstring;
                 name+= ", ";
                 name+= to_string(l);
                 namedWindow(name, WINDOW_NORMAL);
                 resizeWindow(name, 800, 800);
                 imshow(name, gray);
+                
+                // find contours and store them all as a list
+                //(findContours treads white as foreground and black as background:) (https://answers.opencv.org/question/2885/findcontours-gives-me-the-border-of-the-image/)
+                findContours(gray, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE); //CV_RETR_EXTERNAL -> dont detect any inner squares inside the bills!
+                
 
                 vector<Point> approx;
 
@@ -338,7 +401,7 @@ class BillDetection
                     // area may be positive or negative - in accordance with the
                     // contour orientation
                     if( approx.size() == 4 &&
-                        fabs(contourArea(approx)) > 1000 &&
+                        fabs(contourArea(approx)) > 3000 &&
                         isContourConvex(approx) )
                     {
                         double maxCosine = 0;
@@ -354,27 +417,27 @@ class BillDetection
                         // (all angles are ~90 degree) then write quandrange
                         // vertices to resultant sequence
                         //&& noRectangleOverImage(gray, approx)
-                        if( maxCosine < 0.3){
+                        if( maxCosine < 0.3 && noRectangleOverImage(gray, approx)){
                             squares.push_back(approx);
                         }
                     }
                 }
             }
-        }
+        //}
 
         vector<Rect> rects;
         for (size_t i = 0; i < squares.size(); i++){
             vector<Point> contour = squares[i];
             rects.push_back( boundingRect(contour));
         }
-        groupRectangles(rects, 1, 0.05); //we may have multiple rectangles really close, so we merge them together. at least 2 triangles must be merged and they must be really overlaped to be merged
+        groupRectangles(rects, 1, 0.08); //we may have multiple rectangles really close, so we merge them together. at least 2 triangles must be merged and they must be really overlaped to be merged
         return rects;
     }
 
     static Scalar getDominantHSVColor(Mat image){
         Mat1b mask(image.size(), uchar(0));
         Scalar meanIntensity = mean(image);
-        cout << meanIntensity << endl;
+        //cout << meanIntensity << endl;
         Scalar hsv = ScalarBGR2HSV(meanIntensity);
         cout << hsv << endl;
         return hsv;
@@ -420,6 +483,7 @@ class BillDetection
         return notesImages;
     }
 };
+
 
 
 class CoinDetection 
