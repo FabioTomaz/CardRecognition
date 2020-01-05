@@ -585,6 +585,7 @@ class CoinDetection
         resizeWindow("Canny", 600, 600);
         imshow("Canny", edges);
 
+
         
         vector<Vec3f> allCircles, circles;
         
@@ -617,6 +618,14 @@ class CoinDetection
             sort_pred()
         );
 
+        if (circles.size() == 0){
+            MoneyDetection moneyDetect = {
+            .identifiedMoneyImage = imageToDraw,
+            .totalValue = 0,
+            .nElements = 0
+            };
+            return moneyDetect;
+        }
         float largestRadius = circles[0][2];
         float change = 0;
         int coins = 0;
@@ -807,11 +816,11 @@ int main(int argc, char** argv)
         //bill detection
         BillDetection billDetection;
         MoneyDetection billsDetected = billDetection.detectBill(imageOriginal, Mat());//draw the identified bills on top of the drawn identified coin
-
+        
         //coin detection
         CoinDetection coinDetection;
         MoneyDetection coinsDetected = coinDetection.detectCoins(imageOriginal, getSquareImage(billsDetected.identifiedMoneyImage, 600));
-        
+
         //write total money text in the image with identified elements
         int total = billsDetected.totalValue + coinsDetected.totalValue;
         Mat drawnImage = coinsDetected.identifiedMoneyImage;
