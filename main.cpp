@@ -93,16 +93,18 @@ class BillDetection
         
         vector<vector<Point> > squares;
         vector<Rect> rects = findSquares(image, squares);
-        vector<Mat> notesImages = drawSquares(image, imageToDraw, rects);
+        vector<Mat> notesImages = cropBills(image, imageToDraw, rects);
         for( size_t i = 0; i < notesImages.size(); i++ ){
             Mat noteImage = notesImages[i];
             //noteImage = quantizeImage(noteImage, 4);
             string name = "note ";
             name+= to_string(i);
-            cout <<name<<endl;
+            //cout <<name<<endl;
             Scalar hsvColor = getDominantHSVColor(noteImage);
             int value = classifyBill(hsvColor);
-            cout <<"value: " << to_string(value)<<endl;
+            cout <<"detected: " << to_string(value)<< " euros" <<endl;
+            drawOnImage(imageToDraw, rects[i], to_string(value));
+            
             total += value;
 
             namedWindow(name, WINDOW_NORMAL);
@@ -329,7 +331,7 @@ class BillDetection
         Scalar meanIntensity = mean(image);
         //cout << meanIntensity << endl;
         Scalar hsv = ScalarBGR2HSV(meanIntensity);
-        cout << hsv << endl;
+        //cout << hsv << endl;
         return hsv;
     }
 
@@ -351,29 +353,33 @@ class BillDetection
         roi.height = image.size().height - (offset_y*2);
         return image(roi);
     }
+    
+    // the function draws all the squares in the image using rectangles over the identified bills and adds text over the note with the identified value
+    void drawOnImage( Mat& imageToDraw, Rect rect, string text ){
+        rectangle(imageToDraw, rect, Scalar(0,255,0), 3, LINE_AA); //draw rectangle surrounding the note
+        if (text == "0"){
+            text = "?";
+        } 
+        putText(imageToDraw, text, Point(rect.x, rect.y), FONT_HERSHEY_COMPLEX_SMALL, 3.0, 
+            Scalar(0, 0, 255), 
+            3, 
+            CV_AA);
+    }
 
-    // the function draws all the squares in the image using rectangles
-    vector<Mat> drawSquares( Mat image, Mat& imageToDraw, const vector<Rect>& squares )
-    {
+    //given an image and a vector of Rects whose coordinates correspond to the location of a bill in the image, crop that bill as an image
+    vector<Mat> cropBills( Mat image, Mat& imageToDraw, const vector<Rect>& squares ){
         vector<Mat> notesImages;
-        for( size_t i = 0; i < squares.size(); i++ )
-        {
+        for( size_t i = 0; i < squares.size(); i++ ){
             Rect rect = squares[i];
             Mat noteImage(image, rect);
             //crop a little the image to exclude any possible background of the bill
             noteImage = cropImage(noteImage, 20);
             noteImage = cropHalfImage(noteImage);
             notesImages.push_back(noteImage);
-            rectangle(imageToDraw, rect, Scalar(0,255,0), 3, LINE_AA); //draw rectangle surrounding the note
         }
-        const char* wndname = "Bill Detection Demo";
-        /*namedWindow(wndname, WINDOW_NORMAL);
-        resizeWindow(wndname, 800, 800);
-        imshow(wndname, image);*/
         return notesImages;
     }
 };
-
 
 
 class CoinDetection 
