@@ -435,7 +435,7 @@ class CoinDetection
     
     bool isEuro(Mat img, Vec3f circ) {
         Scalar hsv = getMeanCircleHSV(img, circ);
-        return hsv[0] >= 15 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=130 && hsv[2] > 85 && hsv[2] <=210;
+        return hsv[0] >= 14 && hsv[0] < 18 && hsv[1] > 50 && hsv[1] <=165 && hsv[2] > 80 && hsv[2] <=210;
     }
 
     bool isPenny(Mat img, Vec3f circ) {
@@ -486,6 +486,10 @@ class CoinDetection
         
         imgScaled = getSquareImage(img, 600);
 
+        namedWindow("Original Image", WINDOW_NORMAL);
+        resizeWindow("Original Image", 600, 600);
+        imshow("Original Image", imgScaled);
+
         if (imageToDraw.empty()){
             imgScaled.copyTo(imageToDraw);
         }
@@ -501,7 +505,7 @@ class CoinDetection
         Mat edges, edgesOpened;
 
         Canny(gray, edgesOpened, 50, 170, 3);
-        
+      
         
         //threshold(gray, edges, 100, 255, CV_THRESH_OTSU);
         //adaptiveThreshold(edges, edges, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 5, 1);
@@ -524,8 +528,6 @@ class CoinDetection
         
         vector<Vec3f> allCircles, circles;
         
-        //HoughCircles(edges, circles, CV_HOUGH_GRADIENT, 2, gray.rows / 12, 200, 80, 20, 70);
-
         // Detects cricles from canny image. param 1 and param 2 values picked based on trial and error.
         HoughCircles(edges, allCircles, CV_HOUGH_GRADIENT, 2, gray.rows / 12, 200, 80, 20, 70);
 
@@ -616,7 +618,7 @@ class CoinDetection
             } 
             else if (isEuro(imgScaled, circles[i]))
             {
-                if (ratio >= 0.90)
+                if (ratio >= 0.85)
                 {
                     drawResult(
                         imageToDraw, 
@@ -628,7 +630,7 @@ class CoinDetection
                     coins = coins + 1;
                     cout << i << "2 euro - " << hsv <<endl;
                 }
-                else if ((ratio >= 0.40) && (ratio<90))
+                else if ((ratio >= 0.40) && (ratio<0.85))
                 {
                     drawResult(
                         imageToDraw, 
@@ -680,15 +682,6 @@ class CoinDetection
                     cout << i << " 10 cents - " << hsv <<endl;
                 }
             }
-            /*
-            drawResult(
-                imageToDraw, 
-                center, 
-                radius, 
-                to_string(i)+ "-?? euro"
-            );
-            cout <<  i << " ?? cents - " << hsv <<endl;
-            */
 
         }
 
