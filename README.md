@@ -1,20 +1,5 @@
 # Money Recognition
-An OpenCV program that recognizes euro bills and coins from images. Opencv 3 was used for the development of this project.
-
-## To compile only the coin detector program:
-```
-g++ CoinDetector.cpp -o <appname>.out `pkg-config --cflags --libs opencv`
-```
-
-## To compile only the bill detector program:
-```
-g++ billDetector.cpp.cpp -o <appname>.out `pkg-config --cflags --libs opencv`
-```
-
-## To use both programs, compile the 'main.cpp':
-```
-g++ main.cpp -o <appname>.out `pkg-config --cflags --libs opencv`
-```
+An OpenCV program written in C++ that recognizes euro bills and coins from images. Opencv 3 was used for the development of this project.
 
 ## To run
 ```
@@ -23,5 +8,5 @@ Usage: ./app <image file> [-c | -b]
 To detect both coins and bills insert only the image as an argument.
 ```
 
-### The bill detector program considers recent euro bills ('Europa' series).
-### The coin detector program considers that a 2 euro coin exist in the picture to scan in order to obtain a measurement scale
+### The coin detector module considers that a 2 euro coin exist in the picture to scan in order to obtain a measurement scale
+### The bill detector module considers that the note(s) are on a non light, smooth surface and that the note are horizontal, non overlapping each other.
