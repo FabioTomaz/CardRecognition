@@ -84,7 +84,7 @@ class BillDetection
     public: 
 
     //Given an image, returns a struct with: the original image with drawings surrounding the identified bills (if any), the total ammount of change detected and number of bills
-    //second argument is an image to draw rectangles surrounding the identified elements. If empty, the original image is provided
+    //second argument is an image to draw rectangles surrounding the identified elements. If empty, the original image is used
     MoneyDetection detectBill(Mat image, Mat imageToDraw){
         if (imageToDraw.empty()){
             image.copyTo(imageToDraw);
@@ -97,19 +97,17 @@ class BillDetection
         for( size_t i = 0; i < notesImages.size(); i++ ){
             Mat noteImage = notesImages[i];
             //noteImage = quantizeImage(noteImage, 4);
-            string name = "note ";
-            name+= to_string(i);
-            //cout <<name<<endl;
             Scalar hsvColor = getDominantHSVColor(noteImage);
             int value = classifyBill(hsvColor);
             cout <<"detected: " << to_string(value)<< " euros" <<endl;
             drawOnImage(imageToDraw, rects[i], to_string(value));
             
             total += value;
-
+            /*string name = "note ";
+            name+= to_string(i);
             namedWindow(name, WINDOW_NORMAL);
             resizeWindow(name, 800, 800);
-            imshow(name, noteImage);
+            imshow(name, noteImage);*/
         }
         MoneyDetection moneyDetect = {
             .identifiedMoneyImage = imageToDraw,
@@ -268,12 +266,12 @@ class BillDetection
                 }
 
                 //for debug                
-                string name = "median blurred ";
+                /*string name = "median blurred ";
                 name+= ", ";
                 name+= to_string(l);
                 namedWindow(name, WINDOW_NORMAL);
                 resizeWindow(name, 800, 800);
-                imshow(name, gray);
+                imshow(name, gray);*/
                 
                 // find contours and store them all as a list
                 //(findContours treads white as foreground and black as background:) (https://answers.opencv.org/question/2885/findcontours-gives-me-the-border-of-the-image/)
@@ -744,7 +742,7 @@ int main(int argc, char** argv)
             Point(drawnImage.cols / 10, drawnImage.rows - drawnImage.rows / 10), 
             FONT_HERSHEY_COMPLEX_SMALL, 
             0.7, 
-            Scalar(0, 255, 255), 
+            Scalar(0, 0, 255), 
             0.6, 
             CV_AA
         );
@@ -769,7 +767,7 @@ int main(int argc, char** argv)
             Point(drawnImage.cols / 10, drawnImage.rows - drawnImage.rows / 10), 
             FONT_HERSHEY_COMPLEX_SMALL, 
             0.7, 
-            Scalar(0, 255, 255), 
+            Scalar(0, 0, 255), 
             0.6, 
             CV_AA
         );
